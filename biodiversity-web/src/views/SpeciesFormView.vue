@@ -9,7 +9,7 @@ const missing = route.params.id && !existing
 const form = reactive(existing ? { ...existing } : { commonName:'', scientificName:'', family:'', genus:'', status:'Not Evaluated', habitat:'', description:'', ecologicalNotes:'', culturalNotes:'', photo:'', photoName:'' })
 const initial = JSON.stringify(form), error = ref(''), photoError = ref(''), reading = ref(false)
 let saved = false
-onBeforeRouteLeave(() => saved || initial === JSON.stringify(form) || window.confirm('Discard your unsaved changes?'))
+onBeforeRouteLeave(to => to.meta.authLayout || saved || initial === JSON.stringify(form) || window.confirm('Discard your unsaved changes?'))
 async function choosePhoto(event) {
  const file = event.target.files[0]; photoError.value = ''
  if (!file) return

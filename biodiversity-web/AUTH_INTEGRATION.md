@@ -1,28 +1,48 @@
-# Login and registration frontend handoff
+# Authentication frontend integration
 
-## Added
+The login page connects to the PHP authentication module. Dashboard and species routes require an active Conservation Officer session. Species screens retain the existing sample records and localStorage behavior; this authentication-only change has no dependency on a species table or species API.
 
-- `/#/login`: email/password form with browser required/email validation.
-- `/#/register`: full name, email, password and confirmation with matching-password and nonblank-name validation.
-- Shared `PasswordField.vue` with accessible show/hide controls and autocomplete attributes.
-- Shared `AuthLayout.vue`, responsive auth styling, dashboard links and explicit demo entry.
-- Honest preview feedback: valid submissions do not sign in or create accounts. Password fields clear after a valid preview submission. No credentials are logged, persisted or sent.
+## Run locally
 
-The dashboard remains an openly accessible sample-data prototype. No frontend route guard, real session, role assignment or logout is implemented. Backend protection must be implemented before real data is used.
+1. Start MySQL/MariaDB and create `biodiversity_db` if needed. Import only `backend/schema.sql` for this change. It creates `users` and `auth_login_attempts` without inserting accounts or changing species data.
+2. Copy `backend/.env.example` to `backend/.env` and supply your database credentials. The database account needs SELECT/INSERT/UPDATE/DELETE on the authentication tables.
+3. For local development, use `APP_ORIGIN=http://localhost:5173` and `COOKIE_SECURE=false`.
+4. From the repository root, provision a test account:
 
-## Backend work requested
+   ```powershell
+   C:/xampp/php/php.exe backend/bin/create-user.php officer@example.com "Test Officer" conservation_officer
+   ```
 
-Connect the two view submit handlers to the team's authentication API. Confirm field names and response formats first. Eric's branch file listing includes `backend/public/auth/csrf.php`, `login.php`, `logout.php` and `me.php`, plus `backend/bin/create-user.php`; their contracts have not been verified here. The listing does not include a public registration endpoint. Coordinate registration or an account-approval flow with Eric rather than invoking the CLI from the browser.
+   Enter a unique password of 12-72 bytes on standard input. Terminal input may be visible.
+5. Start PHP:
 
-1. Agree on registration fields and approval/role policy. Never trust a client-selected officer role.
-2. Implement or confirm the registration endpoint, duplicate-email response and password policy. Eight characters is a temporary frontend minimum only.
-3. Wire login with the agreed CSRF/session mechanism; use secure server-managed sessions. Do not store passwords in browser storage.
-4. Add loading and network/server error states, prevent duplicate submissions, and show success only after the server confirms it.
-5. Check sessions on load, add authenticated navigation and logout, and enforce officer permissions on backend endpoints.
-6. Add integration tests for successful and rejected login, registration, expired sessions and unauthorized requests.
+   ```powershell
+   C:/xampp/php/php.exe -S 127.0.0.1:8080 -t backend/public
+   ```
 
-## Suggested pull request description
+6. In another terminal:
 
-Adds frontend login and registration pages to the conservation officer Vue app, with shared password visibility controls, validation, responsive styling and navigation. Existing dashboard/species behavior is preserved.
+   ```powershell
+   cd biodiversity-web
+   npm install
+   npm run dev
+   ```
 
-Backend team: please connect the form handlers to authentication and provide/confirm a registration endpoint. This PR does not implement real authentication, account creation, session handling or role-based security. Demo access remains explicitly available.
+7. Visit `http://localhost:5173/#/login`. Use this hostname consistently. Vite proxies `/auth/` to PHP on port 8080; `PHP_API_TARGET` can override that target.
+
+## Files and behavior
+
+- `src/services/authService.js`: login, session retrieval and logout. Uses cookies and CSRF tokens; passwords, user identities and tokens are never persisted in browser storage.
+- `src/router/index.js`: route definitions and guards moved from main.js. Protected navigation checks `/auth/me.php`. Non-officers see access restricted; unauthenticated users are redirected to login.
+- `src/App.vue`: actual user name, logout and session rechecks on window focus. No species API calls. The sample-data notice remains visible.
+- Login includes loading/error states and prevents duplicate submissions. Logout reports success only after the server confirms the session has ended.
+- `/register` provides administrator account-request instructions. No public registration endpoint is present.
+- The species form permits navigation to authentication pages when the session ends, so its unsaved-change prompt cannot block logout or access restriction. Its demo save behavior is otherwise unchanged.
+
+Serve only `backend/public` through PHP. In production, route `/auth/` to PHP and serve the Vue build through your web server, with HTTPS and secure cookies. `vite preview` alone does not proxy PHP.
+
+## Validation and remaining integration
+
+Check rejected/correct login, direct protected links, reload, logout, non-officer rejection, cross-tab session invalidation, server/network errors and account-request guidance. Dashboard and demo species pages must load without species tables/endpoints or any `/Species_` request.
+
+The local test harness remains outside the staged submission. SCRUM-29 remains responsible for plant API integration. Replacing sample storage with real plant APIs is a separate change requiring backend role and CSRF guards; frontend navigation checks alone do not protect future database endpoints.

@@ -9,10 +9,8 @@ defineProps({ title: String, subtitle: String })
       <p class="auth-location">Niah National Park · Sarawak, Malaysia</p>
     </section>
     <main class="auth-main" id="main" tabindex="-1">
-      <div class="auth-card"><span class="demo-pill">Frontend preview</span><h2>{{ title }}</h2><p>{{ subtitle }}</p>
-        <div class="demo-note">Authentication is not connected yet. Use test details only; these forms do not create accounts or sign you in.</div>
+      <div class="auth-card"><span class="demo-pill">Conservation Officer portal</span><h2>{{ title }}</h2><p>{{ subtitle }}</p>
         <slot />
-        <div class="auth-demo"><RouterLink to="/">Explore demo workspace</RouterLink><p>No account needed for the sample-data dashboard.</p></div>
       </div>
     </main>
   </div>
