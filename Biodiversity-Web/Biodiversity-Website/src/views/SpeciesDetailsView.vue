@@ -1,0 +1,99 @@
+<script setup>
+import { computed, ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { request } from '../services/authService'
+import { species } from '../services/speciesService'
+import StatusBadge from '../components/StatusBadge.vue'
+const route = useRoute(), router = useRouter(), dialog = ref(null), error = ref(''), loading = ref(true), record = (null)
+onMounted(async () => {
+  try {
+    const data = await request(`/api/species.php?id=${route.params.id}`)
+    record.value = data
+  } catch (e) {
+    error.value = e.message || 'Failed to retrieve record profiles.'
+  } finally {
+    loading.value = false
+  }
+})
+async function remove() { 
+  try { 
+    error.value = ''
+
+    await request(`/api/species.php?id=${record.value.species_id}`, {
+      method: 'DELETE'
+    })
+    
+    dialog.value.close()
+    router.push('/species') 
+  } catch (e) { 
+    error.value = e.message
+    dialog.value.close() 
+  } 
+}
+</script>
+<template>
+    <RouterLink class="back" to="/species">← Back to species</RouterLink><template v-if="record">
+        <div class="page-heading">
+            <div>
+                <p class="eyebrow">SPECIES PROFILE</p>
+                <h1>{{ record.commonName }}</h1>
+                <p><i>{{ record.scientificName }}</i></p>
+            </div>
+            <div class="actions"><button class="button delete" @click="dialog.showModal()">Delete species</button>
+                <RouterLink class="button primary" :to="`/species/${record.id}/edit`">Edit species</RouterLink>
+            </div>
+        </div>
+        <p v-if="error" role="alert" class="error">{{ error }}</p>
+        <div class="detail-grid">
+            <section class="panel detail-content">
+                <h2>Species information</h2>
+                <dl>
+                    <div>
+                        <dt>Scientific name</dt>
+                        <dd><i>{{ record.scientificName }}</i></dd>
+                    </div>
+                    <div>
+                        <dt>Family</dt>
+                        <dd>{{ record.family }}</dd>
+                    </div>
+                    <div>
+                        <dt>Genus</dt>
+                        <dd>{{ record.genus || 'Not recorded' }}</dd>
+                    </div>
+                    <div>
+                        <dt>Conservation status</dt>
+                        <dd>
+                            <StatusBadge :status="record.status" />
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Habitat</dt>
+                        <dd>{{ record.habitat || 'Not recorded' }}</dd>
+                    </div>
+                </dl>
+                <h2>Description</h2>
+                <p class="prose">{{ record.description }}</p>
+                <h2>Ecological information</h2>
+                <p class="prose">{{ record.ecologicalNotes || 'Not recorded' }}</p>
+                <h2>Cultural significance</h2>
+                <p class="prose">{{ record.culturalNotes || 'Not recorded' }}</p>
+            </section>
+            <section class="panel detail-content">
+                <h2>Species photograph</h2><img v-if="record.photo" class="species-photo" :src="record.photo"
+                    :alt="record.commonName">
+                <div v-else class="photo-empty">No photograph added</div>
+                <p class="muted">Last updated {{ new Date(record.updatedAt).toLocaleDateString('en-GB') }}</p>
+            </section>
+        </div>
+        <dialog ref="dialog" aria-labelledby="delete-title">
+            <h2 id="delete-title">Delete {{ record.commonName }}?</h2>
+            <p>This removes the record from this browser. This action cannot be undone.</p>
+            <div class="actions"><button class="button" autofocus @click="dialog.close()">Cancel</button><button
+                    class="button danger-button" @click="remove">Delete record</button></div>
+        </dialog>
+    </template>
+    <section v-else class="empty">
+        <h1>Species not found</h1>
+        <p>The record may have been deleted or a mock data.</p>
+    </section>
+</template>

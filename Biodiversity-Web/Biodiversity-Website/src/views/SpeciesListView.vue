@@ -1,0 +1,66 @@
+<script setup>
+import { computed, ref } from 'vue'
+import { species } from '../services/speciesService'
+import { statuses } from '../data/mockSpecies'
+import StatusBadge from '../components/StatusBadge.vue'
+const search = ref(''), status = ref(''), family = ref('')
+const families = computed(() => [...new Set(species.value.map(r => r.family))].sort())
+const filtered = computed(() => species.value.filter(r => `${r.commonName} ${r.scientificName}`.toLowerCase().includes(search.value.trim().toLowerCase()) && (!status.value || status.value === r.status) && (!family.value || family.value === r.family)))
+</script>
+<template>
+    <div class="page-heading">
+        <div>
+            <p class="eyebrow">PLANT KNOWLEDGE COLLECTION</p>
+            <h1>Species management</h1>
+            <p>Find, document and maintain your species records.</p>
+        </div>
+        <RouterLink class="button primary" to="/species/new">+ Add species</RouterLink>
+    </div>
+    <section class="panel">
+        <div class="filters"><label class="search">Search species<input v-model="search" type="search"
+                    placeholder="Scientific or common name"></label><label>Conservation status<select v-model="status">
+                    <option value="">All statuses</option>
+                    <option v-for="s in statuses" :key="s">{{ s }}</option>
+                </select></label><label>Family<select v-model="family">
+                    <option value="">All families</option>
+                    <option v-for="f in families" :key="f">{{ f }}</option>
+                </select></label><button class="button subtle" @click="search = ''; status = ''; family = ''">Clear
+                filters</button></div>
+        <div class="result-count" role="status">{{ filtered.length }} of {{ species.length }} species</div>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Species</th>
+                        <th>Family</th>
+                        <th>Conservation status</th>
+                        <th>Updated</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="record in filtered" :key="record.id">
+                        <td>
+                            <RouterLink class="table-name" :to="`/species/${record.id}`">{{ record.commonName }}
+                            </RouterLink><i class="scientific">{{ record.scientificName }}</i>
+                        </td>
+                        <td>{{ record.family }}</td>
+                        <td>
+                            <StatusBadge :status="record.status" />
+                        </td>
+                        <td>{{ new Date(record.updatedAt).toLocaleDateString('en-GB') }}</td>
+                        <td>
+                            <RouterLink :to="`/species/${record.id}/edit`" :aria-label="`Edit ${record.commonName}`">
+                                Edit</RouterLink>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div v-if="!filtered.length" class="empty">
+            <h2>{{ species.length ? 'No matching species' : 'Your collection is empty' }}</h2>
+            <p>{{ species.length ? 'Try another name or clear your filters.' : 'Add a species to begin your collection.'
+                }}</p>
+        </div>
+    </section>
+</template>
