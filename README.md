@@ -32,7 +32,7 @@ The ecosystem implements strict backend structural authorization validation gate
 
 * **System Administrator (`admin`):** Complete execution rights over everything. Possesses explicit structural visibility to modify or suspend staff records inside the User Profile Management console.
 * **Conservation Officer (`conservation_officer`):** Full dataset compilation privileges. Authorized to perform record insertions, content modifications, and row deletions across the core species registry.
-* **Field Botanist (`botanist`):** Read-only specialist profile. Accesses full overview dashboards and taxonomic description sheets but is strictly blocked from making data mutations.
+* **Field Botanist (`botanist`):** No Access specialist profile.
 * **General User (`user`):** Read-only explorer profile. Can view and filter park records inside a highly restricted, secure tabular view layout canvas.
 
 ---
