@@ -1,20 +1,6 @@
-# Niah Biodiversity System
+# Niah Biodiversity System Web
 ### Group 3 · COS30049 Agile Software Development (2026)
 
-A secure, decoupled web application engineered for the tracking, management, and audit mapping of flora species registries inside Niah National Park. Built using an integrated stack combining a reactive **Vue 3 SPA frontend architecture** and an atomic **PHP / PDO database utility backend engine**.
-
----
-
-## 🛠️ System Pre-requisites & Setup
-
-Ensure your local runtime environment possesses the following environment configurations before proceeding with installation passes:
-* **Node.js** (v18.0.0 or higher recommended)
-* **PHP Runtime** (v8.1.0 or higher recommended with PDO MySQL extensions activated)
-* **MySQL Database Server** (`biodiversity_db`)
-
----
-
-## 🚀 Local Deployment Execution Steps
 
 Follow these sequential terminal commands strictly within your workspace root directory location to spin up your local development nodes:
 
@@ -22,6 +8,7 @@ Follow these sequential terminal commands strictly within your workspace root di
 Install all required Node engine distribution packages and dependencies tracked within your system configuration files:
 ```bash
 npm install
+npm run dev
 ```
 
 ### 2. Local Database Hydration
