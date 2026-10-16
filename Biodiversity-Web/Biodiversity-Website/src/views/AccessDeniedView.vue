@@ -11,6 +11,7 @@ async function leave() {
   finally { busy.value = false }
 }
 </script>
+
 <template><AuthLayout title="Access restricted" subtitle="This workspace requires the Conservation Officer role.">
   <p>Contact your administrator if you need access, or sign out to use another account.</p>
   <p v-if="error" class="error" role="alert">{{ error }}</p>

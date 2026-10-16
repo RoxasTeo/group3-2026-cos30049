@@ -1,32 +1,22 @@
 <?php
 require_once __DIR__ . '/../../bootstrap.php';
-
-// Enforce strict HTTP method validation, CORS headers, and initialize the session
 api(['POST']); 
-
-// Enforce anti-forgery handshake security checks using your project's helper
 requireCsrf();
 
-// 1. Authenticate Request & Enforce Role Clearances
 if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], ['conservation_officer', 'admin'], true)) {
     respond(403, ['error' => 'Access Denied: Insufficient write privileges.']);
 }
 
-// 2. Validate Target Parameter ID
 $target_id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 if (!$target_id) {
     respond(400, ['error' => 'Missing row identifier parameter (?id=).']);
 }
 
-// 3. Decode the incoming JSON payload parameters cleanly using your system helper
 $body = jsonBody();
-
 $clean_status = (!isset($body['status']) || trim($body['status']) === '') ? 'Not Evaluated' : trim($body['status']);
 $clean_description = (!isset($body['description']) || trim($body['description']) === '') ? 'No description provided.' : trim($body['description']);
 
-// 4. Connect to your pre-configured PDO database instance
 $db = database();
-
 try {
     $sql = "UPDATE species SET 
                 common_name = :common_name, 

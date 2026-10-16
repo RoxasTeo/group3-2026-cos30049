@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../../bootstrap.php';
 api(['POST']);
 requireCsrf();
+
 $body = jsonBody();
 if (!is_string($body['email'] ?? null) || !is_string($body['password'] ?? null)) {
     respond(400, ['error' => 'Email and password are required']);

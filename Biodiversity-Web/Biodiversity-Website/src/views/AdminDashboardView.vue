@@ -8,8 +8,6 @@ const selectedRoleFilter = ref('')
 const loading = ref(true)
 const feedbackMessage = ref('')
 const feedbackError = ref('')
-
-// Roles available inside the Niah Biodiversity System
 const rolesList = ['conservation_officer', 'botanist', 'user']
 
 onMounted(async () => {
@@ -36,7 +34,6 @@ async function fetchUsers() {
     }
 }
 
-// Triggers an immediate server mutation when the dropdown changes
 async function changeUserRole(userId, newRole) {
     feedbackMessage.value = ''
     feedbackError.value = ''
@@ -101,7 +98,7 @@ const filteredUsers = computed(() => {
         <p v-if="feedbackMessage" class="alert success" role="alert">✅ {{ feedbackMessage }}</p>
         <p v-if="feedbackError" class="alert error" role="alert">❌ {{ feedbackError }}</p>
     </div>
-    <section class="panel">   
+    <section class="panel">
         <div v-if="loading" class="alert info">Compiling directory assets...</div>
         <template v-else>
             <!-- Filters Interface Header Control Panel -->

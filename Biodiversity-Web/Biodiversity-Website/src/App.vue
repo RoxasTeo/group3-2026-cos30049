@@ -34,6 +34,7 @@ async function signOut() {
   catch (e) { error.value = e.message }
   finally { busy.value = false }
 }
+
 function hasAccess(linkPath) {
   const role = currentUser.value?.role
   if (role === 'admin') return true
@@ -50,6 +51,7 @@ function handleNavigation(e, linkPath) {
   if (!hasAccess(linkPath)) {
     e.preventDefault()
     error.value = 'Access Denied: Your account role does not have authorization to view this workspace section.'
+    router.push('/access-denied')
     setTimeout(() => { error.value = '' }, 5000)
   }
 }
@@ -107,15 +109,12 @@ vue
         <span>Sarawak, Malaysia</span>
       </div>
 
-      <!-- Dynamic Profile Avatar Badge -->
       <component :is="currentUser?.role === 'admin' ? 'RouterLink' : 'div'" to="/admin/users"
         :class="['profile', { 'admin-clickable': currentUser?.role === 'admin' }]"
         :title="currentUser?.role === 'admin' ? 'Open Admin Dashboard' : ''">
-        <!-- Left Side: Avatar Initials Badge -->
         <span class="avatar">
           {{ currentUser?.role === 'admin' ? 'AD' : (currentUser?.role === 'conservation_officer' ? 'CO' : 'UR') }}
         </span>
-
 
         <div>
           {{ currentUser?.name }}
