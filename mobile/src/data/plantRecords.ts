@@ -1,8 +1,8 @@
 /** Replace this session-only sample repository with Ivan's persistent adapter later. */
 export const recordStatuses = ['Draft', 'Pending sync', 'Synced', 'Failed'] as const;
 export type RecordStatus = typeof recordStatuses[number];
-export type PlantPhoto = { id: string; uri?: string; sampleLabel?: string };
-export type PlantLocation = { latitude: number; longitude: number; accuracy?: number; sample?: boolean };
+export type PlantPhoto = { id: string; uri?: string; sampleLabel?: string; caption?: string; source?: 'camera' | 'gallery'; fileName?: string; mimeType?: string; capturedAt?: string };
+export type PlantLocation = { latitude: number; longitude: number; accuracy?: number; sample?: boolean; capturedAt?: string };
 export type PlantRecord = {
   plantId: string;
   commonName: string;
@@ -19,7 +19,7 @@ export type PlantRecord = {
   sample: boolean;
   syncError?: string;
 };
-export type PlantRecordInput = Pick<PlantRecord, 'plantId' | 'commonName' | 'scientificName' | 'family' | 'conservationStatus' | 'description' | 'habitatNotes'>;
+export type PlantRecordInput = Pick<PlantRecord, 'plantId' | 'commonName' | 'scientificName' | 'family' | 'conservationStatus' | 'description' | 'habitatNotes'> & { photos?: PlantPhoto[]; location?: PlantLocation | null };
 export type RecordFilter = 'All' | RecordStatus;
 const sampleLocation: PlantLocation = { latitude: 3.81, longitude: 113.78, sample: true };
 const makeSample = (plantId: string, commonName: string, status: RecordStatus, time: string, extra: Partial<PlantRecord> = {}): PlantRecord => ({
@@ -56,6 +56,7 @@ export function readinessIssues(record: Pick<PlantRecord, 'plantId' | 'descripti
   if (!record.description.trim()) issues.push('Add field observations before marking ready.');
   const location = record.location;
   if (!location || !Number.isFinite(location.latitude) || !Number.isFinite(location.longitude) || Math.abs(location.latitude) > 90 || Math.abs(location.longitude) > 180) issues.push('Capture a GPS location before marking ready.');
+  else if (location.accuracy != null && (!Number.isFinite(location.accuracy) || location.accuracy < 0 || location.accuracy > 30)) issues.push('GPS accuracy is low. Update the location before marking ready (target ±30 m).');
   return issues;
 }
 function publish(record?: PlantRecord) {
@@ -74,8 +75,9 @@ export function savePlantRecord(input: PlantRecordInput, ready = false, mode: 'c
     ...input, plantId, commonName: input.commonName.trim() || 'Unidentified plant', scientificName: input.scientificName.trim(),
     family: input.family.trim(), conservationStatus: input.conservationStatus.trim(), description: input.description.trim(), habitatNotes: input.habitatNotes.trim(),
     status: ready ? 'Pending sync' : 'Draft', createdAt: existing?.createdAt ?? now, updatedAt: now,
-    photos: existing?.photos ?? [], location: existing?.location ?? null, sample: existing?.sample ?? false,
+    photos: input.photos?.map(photo => ({ ...photo })) ?? existing?.photos ?? [], location: input.location === undefined ? existing?.location ?? null : input.location ? { ...input.location } : null, sample: existing?.sample ?? false,
   };
+  if (saved.photos.length > 4) throw new Error('Attach up to 4 photographs.');
   if (ready) { const issues = readinessIssues(saved); if (issues.length) throw new Error(issues.join('\n')); }
   publish(saved);
   return copy(saved);

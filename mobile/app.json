@@ -24,7 +24,9 @@
     },
     "scheme": "niah-biodiversity",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      ["expo-location", { "locationWhenInUsePermission": "Allow Niah Biodiversity to tag the plant location while you use the app." }],
+      ["expo-image-picker", { "cameraPermission": "Allow Niah Biodiversity to photograph plants for your field records.", "photosPermission": "Allow Niah Biodiversity to attach plant photographs to your field records.", "microphonePermission": false }]
     ]
   }
 }

@@ -67,3 +67,24 @@ test('temporary IDs are unique', () => {
   const r = repository(), ids = new Set(Array.from({ length: 100 }, () => r.createTemporaryPlantId()));
   assert.equal(ids.size, 100);
 });
+test('photos and GPS survive draft save/edit; explicit removal does not mutate the original', () => {
+  const r = repository();
+  const photo = { id: 'camera-1', uri: 'file:///session-plant.jpg', caption: 'Leaves', source: 'camera' };
+  const location = { latitude: 3.81, longitude: 113.78, accuracy: 8, capturedAt: '2026-10-16T06:00:00Z' };
+  const saved = r.savePlantRecord({ ...input('NIAH-CAPTURE-TEST'), photos: [photo], location });
+  photo.caption = 'Changed outside repository'; location.latitude = 0;
+  assert.equal(r.getPlantRecord(saved.plantId).photos[0].caption, 'Leaves');
+  assert.equal(r.getPlantRecord(saved.plantId).location.latitude, 3.81);
+  const removed = r.savePlantRecord({ ...saved, photos: [], location: null }, false, 'edit');
+  assert.equal(removed.photos.length, 0); assert.equal(removed.location, null);
+  assert.equal(saved.photos.length, 1);
+});
+test('low-accuracy fix can remain a draft but cannot be marked ready; four-photo limit enforced', () => {
+  const r = repository();
+  const form = { ...input('NIAH-WEAK-FIX'), description: 'Notes', location: { latitude: 3.81, longitude: 113.78, accuracy: 85 } };
+  r.savePlantRecord(form);
+  assert.throws(() => r.savePlantRecord(form, true, 'edit'), /accuracy is low/);
+  const ready = r.savePlantRecord({ ...form, location: { ...form.location, accuracy: 8 } }, true, 'edit');
+  assert.equal(ready.status, 'Pending sync');
+  assert.throws(() => r.savePlantRecord({ ...input('NIAH-MANY-PHOTOS'), photos: Array.from({ length: 5 }, (_, i) => ({ id: String(i), uri: 'file:///photo.jpg' })) }), /up to 4/);
+});

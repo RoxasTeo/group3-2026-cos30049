@@ -81,6 +81,12 @@ Run `npm.cmd run web`, then visit `/navigation/botanist/records`. See [Records h
 - Create an incomplete draft using an automatically assigned temporary ID. Names and scientific identification may be unknown.
 - Continue a draft, save changes, or mark it Pending sync after validation. Read-only records cannot be edited, overwritten or deleted.
 - Delete drafts with confirmation, and confirm leaving a form with unsaved changes.
-- Uses the existing QR routes and a reactive session-only repository. This is not SQLite persistence or a real server sync. Changes are lost on full reload/app restart. Synced/Failed seed records and location/photo attachments are explicitly labelled samples.
+- Uses the existing QR routes and a reactive session-only repository. This is not SQLite persistence or a real server sync. Changes are lost on full reload/app restart. Synced/Failed seed records and their illustrative attachments are labelled samples. New drafts can attach real picker photos and foreground GPS, but those attachments are session-only too.
 
 Checks: `npx.cmd tsc --noEmit`, `npm.cmd run lint`, and `npm.cmd run test:records`. Browser checks cover list/search/filter/detail, draft validation and transitions, unsaved changes, deletion, QR lookup and widths 320/390/480px. Physical-device camera, GPS and native keyboard/hardware-back testing are not yet verified.
+
+## GPS tagging and photographs
+
+Open a new plant record or continue a Draft from Records. Capture/update GPS, take or choose a photo, review it and optionally add a caption before attaching it. Existing photographs support preview, replacement and confirmed removal. Up to four JPG/PNG/WebP photos of 5 MB each are accepted. Drafts may be saved without GPS; a known accuracy worse than 30 m blocks marking ready (provisional).
+
+Uses expo-location and expo-image-picker with foreground location/camera/photo permission descriptions in app.json. Rebuild native development builds after native configuration changes. Browser GPS needs localhost or HTTPS; camera selection depends on browser/device support. Persistent files, SQLite and server sync remain separate integration work. Full reload/app restart loses current records and attachments.

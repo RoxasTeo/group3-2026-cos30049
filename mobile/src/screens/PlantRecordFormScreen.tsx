@@ -4,6 +4,8 @@ import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { usePreventRemove } from 'expo-router/react-navigation';
 import { createTemporaryPlantId, getPlantRecord, savePlantRecord, type PlantRecordInput } from '../data/plantRecords';
 import { colors, ConfirmRecordAction, RecordBack, RecordButton, RecordFrame, RecordIcon, RecordScroll, ui } from '../components/records/RecordUI';
+import CaptureFields from '../components/records/CaptureFields';
+type TextKey = Exclude<keyof PlantRecordInput, 'photos' | 'location'>;
 
 export default function PlantRecordFormScreen() {
   const params = useLocalSearchParams<{ plantId?: string; edit?: string }>();
@@ -12,11 +14,13 @@ export default function PlantRecordFormScreen() {
   const [id] = useState(() => (params.plantId || createTemporaryPlantId()).trim().toUpperCase());
   const existing = getPlantRecord(id);
   const [form, setForm] = useState<PlantRecordInput>(() => ({ plantId: id, commonName: existing?.commonName === 'Unidentified plant' ? '' : existing?.commonName ?? '', scientificName: existing?.scientificName ?? '', family: existing?.family ?? '', conservationStatus: existing?.conservationStatus ?? 'Not assessed', description: existing?.description ?? '', habitatNotes: existing?.habitatNotes ?? '' }));
-  const [initial] = useState(() => JSON.stringify(form));
+  const [photos, setPhotos] = useState(existing?.photos ?? []), [location, setLocation] = useState(existing?.location ?? null);
+  const [capturing, setCapturing] = useState(false);
+  const [initial] = useState(() => JSON.stringify({ form, photos, location }));
   const [error, setError] = useState(''), [saving, setSaving] = useState(false), [finishedId, setFinishedId] = useState<string | null>(null);
   const [discardVisible, setDiscardVisible] = useState(false);
   const pendingLeave = useRef<(() => void) | null>(null);
-  const dirty = JSON.stringify(form) !== initial && !finishedId;
+  const dirty = (JSON.stringify({ form, photos, location }) !== initial || capturing) && !finishedId;
   usePreventRemove(!!dirty, ({ data }) => { pendingLeave.current = () => navigation.dispatch(data.action); setDiscardVisible(true); });
   useEffect(() => {
     if (Platform.OS !== 'web' || !dirty) return;
@@ -28,15 +32,15 @@ export default function PlantRecordFormScreen() {
     if (finishedId) router.replace({ pathname: '/plant/[plantId]', params: { plantId: finishedId } });
   }, [finishedId]);
   const locked = (editing && (!existing || existing.status !== 'Draft')) || (!editing && !!existing);
-  function set(key: keyof PlantRecordInput, value: string) { setForm(previous => ({ ...previous, [key]: value })); setError(''); }
+  function set(key: TextKey, value: string) { setForm(previous => ({ ...previous, [key]: value })); setError(''); }
   function leave() { router.replace(editing ? { pathname: '/plant/[plantId]', params: { plantId: id } } : '/navigation/botanist/records'); }
   function save(ready: boolean) {
-    if (saving || finishedId) return;
+    if (saving || finishedId || capturing) return;
     setSaving(true); setError('');
-    try { const record = savePlantRecord(form, ready, editing ? 'edit' : 'create'); setFinishedId(record.plantId); }
+    try { const record = savePlantRecord({ ...form, photos, location }, ready, editing ? 'edit' : 'create'); setFinishedId(record.plantId); }
     catch (e) { setError(e instanceof Error ? e.message : 'Could not save this draft.'); setSaving(false); }
   }
-  function field(key: keyof PlantRecordInput, label: string, placeholder: string, multiline = false) {
+  function field(key: TextKey, label: string, placeholder: string, multiline = false) {
     return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput accessibilityLabel={label} value={form[key]} onChangeText={value => set(key, value)} placeholder={placeholder} placeholderTextColor={colors.muted} multiline={multiline} maxLength={multiline ? 2000 : 140} autoCapitalize={key === 'scientificName' ? 'none' : 'sentences'} style={[styles.input, multiline && styles.multiline]} /></View>;
   }
   return <RecordFrame onTab={destination => router.replace(destination)}><KeyboardAvoidingView style={ui.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><RecordScroll>
@@ -50,13 +54,13 @@ export default function PlantRecordFormScreen() {
       {field('conservationStatus', 'Conservation status', 'Not assessed')}
       {field('description', 'Field observations', 'Describe leaves, bark, height or habitat…', true)}
       {field('habitatNotes', 'Habitat notes', 'Describe where you found the plant…', true)}
-      <View style={ui.panel}><Text style={ui.sectionTitle}>Field attachments</Text><Text style={ui.paragraph}>Photos: {existing?.photos.length ? `${existing.photos.length} sample attachment(s)` : 'None attached'}</Text><Text style={ui.paragraph}>GPS: {existing?.location ? `${existing.location.latitude.toFixed(5)}, ${existing.location.longitude.toFixed(5)}${existing.location.sample ? ' (sample)' : ''}` : 'Not captured'}</Text><Text style={ui.caption}>Camera and GPS capture are not connected in this Records prototype.</Text></View>
+      <CaptureFields photos={photos} location={location} onPhotos={setPhotos} onLocation={setLocation} onBusyChange={setCapturing} />
       <View style={styles.readiness}><Text style={ui.sectionTitle}>Before marking ready</Text>{[
-        ['Plant ID assigned', true], ['Field observations recorded', !!form.description.trim()], ['GPS location captured', !!existing?.location],
+        ['Plant ID assigned', true], ['Field observations recorded', !!form.description.trim()], ['GPS location captured', !!location],
       ].map(([label, complete]) => <View key={String(label)} style={styles.check}><RecordIcon name={complete ? 'check' : 'clock'} /><Text style={ui.paragraph}>{label}</Text></View>)}<Text style={ui.caption}>An unidentified species can still be marked ready. This draft validation policy is provisional; marking ready does not upload data.</Text></View>
       {!!error && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={ui.error}>{error}</Text>}
-      <RecordButton label={saving ? 'Saving…' : 'Save draft'} primary disabled={saving} onPress={() => save(false)} />
-      <RecordButton label="Mark ready to sync" disabled={saving} onPress={() => save(true)} />
+      <RecordButton label={saving ? 'Saving…' : 'Save draft'} primary disabled={saving || capturing} onPress={() => save(false)} />
+      <RecordButton label="Mark ready to sync" disabled={saving || capturing} onPress={() => save(true)} />
       <Text style={ui.caption}>Session-only prototype: changes are lost when the app restarts. SQLite and server sync will be integrated separately.</Text>
     </>}
     <ConfirmRecordAction visible={discardVisible} title="Discard unsaved changes?" description="Your last saved draft will be kept. Changes made since then will be discarded." confirmLabel="Discard changes" onCancel={() => { setDiscardVisible(false); pendingLeave.current = null; }} onConfirm={() => { setDiscardVisible(false); const action = pendingLeave.current; pendingLeave.current = null; action?.(); }} />
