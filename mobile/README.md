@@ -61,3 +61,9 @@ All feature pages are intentionally empty except for their heading. Tabs update 
 Edit `src/navigation/roles.ts` to change menu items, `src/components/RoleNavigationBar.tsx` for the bar design, and `src/screens/NavigationShell.tsx` for the blank page layout. Routes are in `src/app/`.
 
 These role URLs are UI previews, not authenticated access. The proposal's primary mobile user is the Botanist; the Conservation Officer configuration demonstrates the alternative menu only. Before adding protected content, connect the authenticated role and enforce permissions on the backend.
+
+## Botanist Home page
+
+`src/screens/BotanistHomeScreen.tsx` now renders inside Botanist Home. It includes quick actions, draft and pending-sync counts derived from three labelled sample records, recent records, and a sync reminder. Connection and last-sync information are explicitly unavailable until integration.
+
+Scan, Records, and Sync actions open the existing placeholder tabs. New plant record opens `/plant-record/new`, an explicit placeholder with a Back to Home action; it does not create data. The Conservation Officer Home remains unchanged. No new dependencies are required.

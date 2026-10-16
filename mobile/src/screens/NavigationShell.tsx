@@ -2,6 +2,7 @@ import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RoleNavigationBar from '../components/RoleNavigationBar';
+import BotanistHomeScreen from './BotanistHomeScreen';
 import { isRole, roleNavigation } from '../navigation/roles';
 
 export default function NavigationShell() {
@@ -21,8 +22,9 @@ export default function NavigationShell() {
           <View><Text style={styles.brand}>Niah</Text><Text style={styles.brandCaption}>BIODIVERSITY</Text></View>
           <View style={styles.roleBadge}><View style={styles.dot} /><Text style={styles.role}>{navigation.label}</Text></View>
         </View>
-        {/* The content area is deliberately empty, ready for each feature screen. */}
-        <View style={styles.content}><Text accessibilityRole="header" style={styles.title}>{active.label}</Text></View>
+        {/* Only Botanist Home has content so far; other feature screens are placeholders. */}
+        {role === 'botanist' && active.id === 'home' ? <BotanistHomeScreen /> :
+          <View style={styles.content}><Text accessibilityRole="header" style={styles.title}>{active.label}</Text></View>}
         <RoleNavigationBar items={navigation.tabs} activeTab={active.id}
           onSelect={next => router.replace({ pathname: '/navigation/[role]/[tab]', params: { role, tab: next } })} />
       </View>
