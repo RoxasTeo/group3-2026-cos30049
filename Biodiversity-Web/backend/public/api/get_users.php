@@ -1,0 +1,29 @@
+<?php
+require_once __DIR__ . '/../../bootstrap.php';
+api(['GET']);
+
+if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    respond(403, ['error' => 'Access Denied: Administrative credentials required.']);
+}
+
+$db = database();
+try {
+    $stmt = $db->query("
+        SELECT 
+            id, 
+            name, 
+            email, 
+            role, 
+            is_active 
+        FROM users 
+        WHERE role != 'admin'
+        ORDER BY name ASC
+    ");
+    
+    $usersList = $stmt->fetchAll();
+    respond(200, $usersList);
+
+} catch (\PDOException $e) {
+    error_log('Database User Retrieval Error: ' . $e->getMessage());
+    respond(500, ['error' => 'Internal database operational retrieval failure.']);
+}
