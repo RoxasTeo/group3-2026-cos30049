@@ -1,2 +1,65 @@
-import { useState } from 'react'; import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'; import { router, useLocalSearchParams } from 'expo-router'; import { getPlantRecord, savePlantRecord } from '../data/plantRecords';
-export default function PlantRecordFormScreen(){const p=useLocalSearchParams<{plantId:string;edit?:string}>();const existing=getPlantRecord(p.plantId??'');const [f,setF]=useState({plantId:p.plantId??'',commonName:existing?.commonName??'',scientificName:existing?.scientificName??'',family:existing?.family??'',conservationStatus:existing?.conservationStatus??'Not assessed',description:existing?.description??'',habitatNotes:existing?.habitatNotes??''});const [errors,setErrors]=useState<Record<string,string>>({});const set=(key:string,value:string)=>{setF(v=>({...v,[key]:value}));setErrors(e=>({...e,[key]:''}));};const field=(key:string,label:string,required=false,multi=false)=><View style={s.field}><Text style={s.label}>{label}{required&&<Text style={s.required}> *</Text>}</Text><TextInput accessibilityLabel={label} style={[s.input,multi&&s.multi,errors[key]&&s.bad]} multiline={multi} value={f[key as keyof typeof f]} onChangeText={v=>set(key,v)} editable={key!=='plantId'||!!p.edit||!p.plantId}/>{!!errors[key]&&<Text accessibilityRole="alert" style={s.error}>{errors[key]}</Text>}</View>;function save(){const e:Record<string,string>={};['plantId','commonName','scientificName'].forEach(k=>{if(!f[k as keyof typeof f].trim())e[k]='This field is required.';});setErrors(e);if(Object.keys(e).length)return;const saved=savePlantRecord(f);router.replace({pathname:'/plant/[plantId]',params:{plantId:saved.plantId}});}return <ScrollView contentContainerStyle={s.root} keyboardShouldPersistTaps="handled"><Text style={s.eyebrow}>{p.edit?'EDIT LOCAL RECORD':'NEW FIELD RECORD'}</Text><Text accessibilityRole="header" style={s.title}>Plant record</Text><Text style={s.help}>Fields marked * are required. Records are stored locally for Sprint 1.</Text>{field('plantId','Plant / QR ID',true)}{field('commonName','Common name',true)}{field('scientificName','Scientific name',true)}{field('family','Family')}<View style={s.field}><Text style={s.label}>Conservation status</Text><TextInput accessibilityLabel="Conservation status" style={s.input} value={f.conservationStatus} onChangeText={v=>set('conservationStatus',v)}/></View>{field('description','Physical traits / description',false,true)}{field('habitatNotes','Habitat or location notes',false,true)}<View style={s.photo}><Text style={s.label}>Optional photo placeholder</Text><Text style={s.help}>Photo capture and offline storage are planned for a later sprint.</Text></View><View style={s.actions}><Pressable style={s.cancel} onPress={()=>router.back()}><Text style={s.cancelText}>Cancel</Text></Pressable><Pressable style={s.save} onPress={save}><Text style={s.saveText}>Save record</Text></Pressable></View></ScrollView>};const s=StyleSheet.create({root:{flexGrow:1,padding:24,paddingBottom:40,backgroundColor:'#FAF9F4'},eyebrow:{fontSize:11,fontWeight:'700',color:'#34664B'},title:{fontSize:29,fontWeight:'700',color:'#203C33',marginTop:8},help:{color:'#64756C',lineHeight:20,marginTop:6},field:{marginTop:18},label:{fontWeight:'700',color:'#203C33',fontSize:14},required:{color:'#A1382C'},input:{minHeight:54,borderWidth:1,borderColor:'#B9C8BF',borderRadius:12,backgroundColor:'#fff',paddingHorizontal:14,marginTop:8,fontSize:16,color:'#203C33'},multi:{minHeight:100,textAlignVertical:'top',paddingTop:12},bad:{borderColor:'#A1382C',borderWidth:2},error:{color:'#A1382C',marginTop:5},photo:{borderWidth:1,borderStyle:'dashed',borderColor:'#8DA293',borderRadius:14,padding:15,marginTop:20},actions:{flexDirection:'row',gap:12,marginTop:24},cancel:{flex:1,minHeight:54,borderWidth:1,borderColor:'#49685C',borderRadius:12,alignItems:'center',justifyContent:'center'},save:{flex:1.3,minHeight:54,backgroundColor:'#173F35',borderRadius:12,alignItems:'center',justifyContent:'center'},cancelText:{color:'#173F35',fontWeight:'700',fontSize:16},saveText:{color:'#fff',fontWeight:'700',fontSize:16}});
+import { useEffect, useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { usePreventRemove } from 'expo-router/react-navigation';
+import { createTemporaryPlantId, getPlantRecord, savePlantRecord, type PlantRecordInput } from '../data/plantRecords';
+import { colors, ConfirmRecordAction, RecordBack, RecordButton, RecordFrame, RecordIcon, RecordScroll, ui } from '../components/records/RecordUI';
+
+export default function PlantRecordFormScreen() {
+  const params = useLocalSearchParams<{ plantId?: string; edit?: string }>();
+  const navigation = useNavigation();
+  const editing = params.edit === 'true';
+  const [id] = useState(() => (params.plantId || createTemporaryPlantId()).trim().toUpperCase());
+  const existing = getPlantRecord(id);
+  const [form, setForm] = useState<PlantRecordInput>(() => ({ plantId: id, commonName: existing?.commonName === 'Unidentified plant' ? '' : existing?.commonName ?? '', scientificName: existing?.scientificName ?? '', family: existing?.family ?? '', conservationStatus: existing?.conservationStatus ?? 'Not assessed', description: existing?.description ?? '', habitatNotes: existing?.habitatNotes ?? '' }));
+  const [initial] = useState(() => JSON.stringify(form));
+  const [error, setError] = useState(''), [saving, setSaving] = useState(false), [finishedId, setFinishedId] = useState<string | null>(null);
+  const [discardVisible, setDiscardVisible] = useState(false);
+  const pendingLeave = useRef<(() => void) | null>(null);
+  const dirty = JSON.stringify(form) !== initial && !finishedId;
+  usePreventRemove(!!dirty, ({ data }) => { pendingLeave.current = () => navigation.dispatch(data.action); setDiscardVisible(true); });
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !dirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+  useEffect(() => {
+    if (finishedId) router.replace({ pathname: '/plant/[plantId]', params: { plantId: finishedId } });
+  }, [finishedId]);
+  const locked = (editing && (!existing || existing.status !== 'Draft')) || (!editing && !!existing);
+  function set(key: keyof PlantRecordInput, value: string) { setForm(previous => ({ ...previous, [key]: value })); setError(''); }
+  function leave() { router.replace(editing ? { pathname: '/plant/[plantId]', params: { plantId: id } } : '/navigation/botanist/records'); }
+  function save(ready: boolean) {
+    if (saving || finishedId) return;
+    setSaving(true); setError('');
+    try { const record = savePlantRecord(form, ready, editing ? 'edit' : 'create'); setFinishedId(record.plantId); }
+    catch (e) { setError(e instanceof Error ? e.message : 'Could not save this draft.'); setSaving(false); }
+  }
+  function field(key: keyof PlantRecordInput, label: string, placeholder: string, multiline = false) {
+    return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput accessibilityLabel={label} value={form[key]} onChangeText={value => set(key, value)} placeholder={placeholder} placeholderTextColor={colors.muted} multiline={multiline} maxLength={multiline ? 2000 : 140} autoCapitalize={key === 'scientificName' ? 'none' : 'sentences'} style={[styles.input, multiline && styles.multiline]} /></View>;
+  }
+  return <RecordFrame onTab={destination => router.replace(destination)}><KeyboardAvoidingView style={ui.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><RecordScroll>
+    <RecordBack label={editing ? 'record details' : 'Records'} onPress={leave} />
+    {locked ? <><Text accessibilityRole="header" style={ui.title}>{existing ? 'Record is read-only' : 'Draft not found'}</Text><Text style={ui.paragraph}>Only existing drafts can be edited. A new record must use a unique plant ID.</Text><RecordButton label="Back to Records" onPress={() => router.replace('/navigation/botanist/records')} /></> : <>
+      <View><Text style={ui.eyebrow}>FIELD DOCUMENTATION</Text><Text accessibilityRole="header" style={ui.title}>{editing ? 'Continue draft' : 'New plant record'}</Text><Text style={ui.subtitle}>Save incomplete observations as a draft.</Text></View>
+      <View style={styles.field}><Text style={styles.label}>Plant / temporary ID</Text><Text selectable style={[styles.input, styles.readonly]}>{id}</Text><Text style={ui.caption}>Assigned once. An unidentified plant can keep a temporary ID.</Text></View>
+      {field('commonName', 'Common name', 'Leave blank if unknown')}
+      {field('scientificName', 'Scientific name', 'Optional until identification')}
+      {field('family', 'Family', 'Optional')}
+      {field('conservationStatus', 'Conservation status', 'Not assessed')}
+      {field('description', 'Field observations', 'Describe leaves, bark, height or habitat…', true)}
+      {field('habitatNotes', 'Habitat notes', 'Describe where you found the plant…', true)}
+      <View style={ui.panel}><Text style={ui.sectionTitle}>Field attachments</Text><Text style={ui.paragraph}>Photos: {existing?.photos.length ? `${existing.photos.length} sample attachment(s)` : 'None attached'}</Text><Text style={ui.paragraph}>GPS: {existing?.location ? `${existing.location.latitude.toFixed(5)}, ${existing.location.longitude.toFixed(5)}${existing.location.sample ? ' (sample)' : ''}` : 'Not captured'}</Text><Text style={ui.caption}>Camera and GPS capture are not connected in this Records prototype.</Text></View>
+      <View style={styles.readiness}><Text style={ui.sectionTitle}>Before marking ready</Text>{[
+        ['Plant ID assigned', true], ['Field observations recorded', !!form.description.trim()], ['GPS location captured', !!existing?.location],
+      ].map(([label, complete]) => <View key={String(label)} style={styles.check}><RecordIcon name={complete ? 'check' : 'clock'} /><Text style={ui.paragraph}>{label}</Text></View>)}<Text style={ui.caption}>An unidentified species can still be marked ready. This draft validation policy is provisional; marking ready does not upload data.</Text></View>
+      {!!error && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={ui.error}>{error}</Text>}
+      <RecordButton label={saving ? 'Saving…' : 'Save draft'} primary disabled={saving} onPress={() => save(false)} />
+      <RecordButton label="Mark ready to sync" disabled={saving} onPress={() => save(true)} />
+      <Text style={ui.caption}>Session-only prototype: changes are lost when the app restarts. SQLite and server sync will be integrated separately.</Text>
+    </>}
+    <ConfirmRecordAction visible={discardVisible} title="Discard unsaved changes?" description="Your last saved draft will be kept. Changes made since then will be discarded." confirmLabel="Discard changes" onCancel={() => { setDiscardVisible(false); pendingLeave.current = null; }} onConfirm={() => { setDiscardVisible(false); const action = pendingLeave.current; pendingLeave.current = null; action?.(); }} />
+  </RecordScroll></KeyboardAvoidingView></RecordFrame>;
+}
+const styles = StyleSheet.create({ field: { gap: 8 }, label: { fontSize: 13, fontWeight: '600', color: colors.ink }, input: { borderWidth: 1, borderColor: colors.border, borderRadius: 11, backgroundColor: colors.paper, padding: 14, minHeight: 52, fontSize: 16, color: colors.ink }, readonly: { backgroundColor: colors.soft, fontSize: 13 }, multiline: { minHeight: 110, textAlignVertical: 'top' }, readiness: { padding: 16, backgroundColor: colors.soft, borderRadius: 12, gap: 10 }, check: { flexDirection: 'row', alignItems: 'center', gap: 8 } });

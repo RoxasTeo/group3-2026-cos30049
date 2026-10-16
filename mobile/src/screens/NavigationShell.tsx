@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RoleNavigationBar from '../components/RoleNavigationBar';
 import { isRole, roleNavigation } from '../navigation/roles';
 import QRScannerScreen from './QRScannerScreen';
+import RecordsScreen from './RecordsScreen';
 
 export default function NavigationShell() {
   const { role, tab } = useLocalSearchParams<{ role: string; tab: string }>();
@@ -22,7 +23,7 @@ export default function NavigationShell() {
           <View><Text style={styles.brand}>Niah</Text><Text style={styles.brandCaption}>BIODIVERSITY</Text></View>
           <View style={styles.roleBadge}><View style={styles.dot} /><Text style={styles.role}>{navigation.label}</Text></View>
         </View>
-        <View style={styles.content}>{role === 'botanist' && active.id === 'scan' ? <QRScannerScreen /> : <Text accessibilityRole="header" style={styles.title}>{active.label}</Text>}</View>
+        <View style={[styles.content, role === 'botanist' && active.id === 'records' && styles.recordsContent]}>{role === 'botanist' && active.id === 'scan' ? <QRScannerScreen /> : role === 'botanist' && active.id === 'records' ? <RecordsScreen /> : <Text accessibilityRole="header" style={styles.title}>{active.label}</Text>}</View>
         <RoleNavigationBar items={navigation.tabs} activeTab={active.id}
           onSelect={next => router.replace({ pathname: '/navigation/[role]/[tab]', params: { role, tab: next } })} />
       </View>
@@ -40,5 +41,6 @@ const styles = StyleSheet.create({
   dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#D8E8AD' },
   role: { color: '#E3EBD9', fontSize: 11, flexShrink: 1 },
   content: { flex: 1, padding: 24 },
+  recordsContent: { padding: 0, minHeight: 0 },
   title: { color: '#203C33', fontSize: 26, fontWeight: '600', letterSpacing: -0.6 },
 });

@@ -56,7 +56,7 @@ Run `npm.cmd run web`, then add `/navigation` to the browser address to open the
 - `/navigation/botanist/home`: Home, Scan, Records, Sync, Profile.
 - `/navigation/conservation-officer/home`: Home, Species, Review, Reports, Profile.
 
-All feature pages are intentionally empty except for their heading. Tabs update the route and selected highlight. Unknown roles return to login; unavailable tabs return to that role's Home page.
+Records and the manual QR workflow now have interactive screens. Other feature tabs remain placeholders. Tabs update the route and selected highlight. Unknown roles return to login; unavailable tabs return to that role's Home page.
 
 Edit `src/navigation/roles.ts` to change menu items, `src/components/RoleNavigationBar.tsx` for the bar design, and `src/screens/NavigationShell.tsx` for the blank page layout. Routes are in `src/app/`.
 
@@ -71,3 +71,16 @@ replaceable by offline storage or a backend adapter. Camera access is isolated i
 development fallback.
 
 Run `npx.cmd tsc --noEmit` and `npx.cmd expo lint` from `mobile`.
+
+## Botanist Records page
+
+Run `npm.cmd run web`, then visit `/navigation/botanist/records`. See [Records handoff](RECORDS.md) for behavior, data contracts and remaining storage/sync integration.
+
+- Search sample records by name, scientific name or plant/temporary ID; combine with All, Drafts, Pending sync, Synced or Failed filters.
+- View details, illustrative photographs/GPS, collection dates and status explanations.
+- Create an incomplete draft using an automatically assigned temporary ID. Names and scientific identification may be unknown.
+- Continue a draft, save changes, or mark it Pending sync after validation. Read-only records cannot be edited, overwritten or deleted.
+- Delete drafts with confirmation, and confirm leaving a form with unsaved changes.
+- Uses the existing QR routes and a reactive session-only repository. This is not SQLite persistence or a real server sync. Changes are lost on full reload/app restart. Synced/Failed seed records and location/photo attachments are explicitly labelled samples.
+
+Checks: `npx.cmd tsc --noEmit`, `npm.cmd run lint`, and `npm.cmd run test:records`. Browser checks cover list/search/filter/detail, draft validation and transitions, unsaved changes, deletion, QR lookup and widths 320/390/480px. Physical-device camera, GPS and native keyboard/hardware-back testing are not yet verified.
