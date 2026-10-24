@@ -1,7 +1,10 @@
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RoleNavigationBar from '../components/RoleNavigationBar';
+import RecordsScreen from './RecordsScreen';
+import QRScannerScreen from './QRScannerScreen';
+import ProfileScreen from './ProfileScreen';
 import BotanistHomeScreen from './BotanistHomeScreen';
 import { isRole, roleNavigation } from '../navigation/roles';
 
@@ -22,8 +25,11 @@ export default function NavigationShell() {
           <View><Text style={styles.brand}>Niah</Text><Text style={styles.brandCaption}>BIODIVERSITY</Text></View>
           <View style={styles.roleBadge}><View style={styles.dot} /><Text style={styles.role}>{navigation.label}</Text></View>
         </View>
-        {/* Only Botanist Home has content so far; other feature screens are placeholders. */}
+        {/* Mount each Botanist feature inside the shared header and navigation bar. */}
         {role === 'botanist' && active.id === 'home' ? <BotanistHomeScreen /> :
+          role === 'botanist' && active.id === 'records' ? <RecordsScreen /> :
+          role === 'botanist' && active.id === 'profile' ? <ProfileScreen /> :
+          role === 'botanist' && active.id === 'scan' ? <ScrollView contentContainerStyle={{ padding: 24 }}><QRScannerScreen /></ScrollView> :
           <View style={styles.content}><Text accessibilityRole="header" style={styles.title}>{active.label}</Text></View>}
         <RoleNavigationBar items={navigation.tabs} activeTab={active.id}
           onSelect={next => router.replace({ pathname: '/navigation/[role]/[tab]', params: { role, tab: next } })} />

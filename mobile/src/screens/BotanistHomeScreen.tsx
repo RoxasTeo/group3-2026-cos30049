@@ -2,12 +2,10 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-// Demo records only: no device storage, network status, or server sync is implied.
-const sampleRecords = [
-  { id: 'NIAH-005', name: 'Unidentified plant', date: '16 Oct 2026 · 10:15', status: 'Draft' },
-  { id: 'NIAH-004', name: 'Forest fern', date: '16 Oct 2026 · 09:50', status: 'Pending sync' },
-  { id: 'NIAH-003', name: 'Unidentified seedling', date: '15 Oct 2026 · 14:20', status: 'Pending sync' },
-];
+import { usePlantRecords } from '../hooks/usePlantRecords';
+import { selectPlantRecords } from '../data/plantRecords';
+import { RecordBadge, recordDate } from '../components/records/RecordUI';
+
 const green = '#173F35';
 const goTo = (tab: 'scan' | 'records' | 'sync') => router.push({ pathname: '/navigation/[role]/[tab]', params: { role: 'botanist', tab } });
 
@@ -22,9 +20,11 @@ function HomeIcon({ kind, color = green }: { kind: 'leaf' | 'plus' | 'scan' | 's
 }
 
 export default function BotanistHomeScreen() {
+  const records = usePlantRecords();
+  const recentRecords = selectPlantRecords(records).slice(0, 3);
   // Derive counts from the same data shown below so the summary stays consistent.
-  const drafts = sampleRecords.filter(record => record.status === 'Draft').length;
-  const pending = sampleRecords.filter(record => record.status === 'Pending sync').length;
+  const drafts = records.filter(record => record.status === 'Draft').length;
+  const pending = records.filter(record => record.status === 'Pending sync').length;
   return (
     <ScrollView style={s.scroll} contentContainerStyle={s.content}>
       <Text style={s.eyebrow}>NIAH NATIONAL PARK</Text>
@@ -32,11 +32,11 @@ export default function BotanistHomeScreen() {
       <Text style={s.subtitle}>Ready for your next field discovery?</Text>
 
       <View style={s.preview}>
-        <Text style={s.previewLabel}>SAMPLE DATA</Text>
-        <Text style={s.previewText}>Preview records below. Connection status and last sync are not available yet.</Text>
+        <Text style={s.previewLabel}>SESSION-ONLY DATA</Text>
+        <Text style={s.previewText}>Includes records. Changes last for this session only; server sync is not connected.</Text>
       </View>
 
-      <Pressable accessibilityRole="button" onPress={() => router.push('/plant-record/new')}
+      <Pressable accessibilityRole="button" onPress={() => router.push('/plant/new')}
         style={({ pressed }) => [s.primary, pressed && s.pressed]}>
         <View style={s.primaryIcon}><HomeIcon kind="plus" color="#D8E8AD" /></View>
         <View style={s.actionCopy}><Text style={s.primaryTitle}>New plant record</Text><Text style={s.primarySubtitle}>Start documenting a discovery</Text></View>
@@ -46,33 +46,33 @@ export default function BotanistHomeScreen() {
         <HomeIcon kind="scan" /><Text style={s.scanLabel}>Scan QR code</Text><Text style={s.arrow}>→</Text>
       </Pressable>
 
-      <View style={s.sectionHeading}><Text accessibilityRole="header" style={s.sectionTitle}>Your field records</Text><Text style={s.smallLabel}>SAMPLE</Text></View>
+      <View style={s.sectionHeading}><Text accessibilityRole="header" style={s.sectionTitle}>Your field records</Text><Text style={s.smallLabel}>PREVIEW</Text></View>
       <View style={s.stats}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${drafts} sample draft records. Open Records`} onPress={() => goTo('records')} style={({ pressed }) => [s.stat, pressed && s.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${drafts} draft records. Open Records`} onPress={() => goTo('records')} style={({ pressed }) => [s.stat, pressed && s.pressed]}>
           <Text style={s.count}>{drafts.toString().padStart(2, '0')}</Text><Text style={s.statLabel}>Drafts</Text><Text style={s.statHint}>Continue in Records →</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${pending} sample records pending sync. Open Sync`} onPress={() => goTo('sync')} style={({ pressed }) => [s.stat, s.pendingStat, pressed && s.pressed]}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${pending} records pending sync. Open Sync`} onPress={() => goTo('sync')} style={({ pressed }) => [s.stat, s.pendingStat, pressed && s.pressed]}>
           <Text style={s.count}>{pending.toString().padStart(2, '0')}</Text><Text style={s.statLabel}>Pending sync</Text><Text style={s.statHint}>Review in Sync →</Text>
         </Pressable>
       </View>
 
       <View style={s.sectionHeading}><Text accessibilityRole="header" style={s.sectionTitle}>Recent records</Text><Pressable accessibilityRole="button" onPress={() => goTo('records')} style={s.textButton}><Text style={s.link}>View all →</Text></Pressable></View>
       <View style={s.records}>
-        {sampleRecords.map((record, index) => (
-          <View key={record.id} style={[s.record, index > 0 && s.recordBorder]}>
+        {recentRecords.map((record, index) => (
+          <Pressable accessibilityRole="button" key={record.plantId} onPress={() => router.push({ pathname: '/plant/[plantId]', params: { plantId: record.plantId } })} style={[s.record, index > 0 && s.recordBorder]}>
             <View style={s.leafIcon}><HomeIcon kind="leaf" /></View>
             <View style={s.recordBody}>
-              <Text style={s.recordName}>{record.name}</Text>
-              <Text style={s.recordMeta}>{record.id} · {record.date}</Text>
-              <View style={[s.badge, record.status === 'Draft' ? s.draftBadge : s.pendingBadge]}><Text style={s.badgeText}>{record.status}</Text></View>
+              <Text style={s.recordName}>{record.commonName || 'Unidentified plant'}</Text>
+              <Text style={s.recordMeta}>{record.plantId} · {recordDate(record.updatedAt)}</Text>
+              <RecordBadge status={record.status} />
             </View>
-          </View>
+          </Pressable>
         ))}
       </View>
 
       <View style={s.syncCard}>
         <HomeIcon kind="sync" />
-        <View style={s.actionCopy}><Text style={s.syncTitle}>Bring your discoveries together</Text><Text style={s.syncText}>{pending} sample records are waiting to sync. Open Sync to view the page preview.</Text><Pressable accessibilityRole="button" onPress={() => goTo('sync')} style={s.syncButton}><Text style={s.link}>Open Sync →</Text></Pressable></View>
+        <View style={s.actionCopy}><Text style={s.syncTitle}>Bring your discoveries together</Text><Text style={s.syncText}>{pending} records are waiting to sync. Open Sync to view the page preview.</Text><Pressable accessibilityRole="button" onPress={() => goTo('sync')} style={s.syncButton}><Text style={s.link}>Open Sync →</Text></Pressable></View>
       </View>
       <Text style={s.footer}>Every record is a step towards protecting biodiversity.</Text>
     </ScrollView>

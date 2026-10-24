@@ -1,69 +1,51 @@
-# React Native App
+# Niah Biodiversity mobile app
 
-An Expo React Native starter using TypeScript.
+Expo SDK 57, React Native, TypeScript and Expo Router.
 
-## Edit in Visual Studio Code
+## Run and edit
 
-Open this folder in VS Code. Edit `App.tsx` to change the main screen.
-
-## Run
-
-In the VS Code terminal:
+Open this `mobile` folder in Visual Studio Code, then run:
 
 ```powershell
-npm.cmd start
+npm.cmd install
+npm.cmd run web
 ```
 
-Scan the QR code with a compatible Expo Go app on your phone. Keep the phone and computer on the same Wi-Fi network. You can also press `a` to open an Android emulator if Android Studio and an emulator are installed.
+Use `npm.cmd start` for a device preview. GPS and photo capture need device permissions and should also be checked on a physical device.
 
-If PowerShell blocks npm scripts, use `npm.cmd` as shown above.
+## Integrated features
 
-## Check TypeScript
+- Login form and role-based navigation preview.
+- Botanist Home: draft/pending counts and recent records from the shared session store; shortcuts to create, scan and browse records.
+- Records: search/filter, details, create/edit/delete drafts, GPS tagging and photo attachments. Marking a complete draft ready puts it in Pending sync.
+- Scan: manual plant-tag lookup opens an existing record or a new form. Native QR camera scanning is not installed yet.
+- Profile: contributor's profile design, labelled demo account, session record count and a working Records shortcut.
+- Sync and Conservation Officer feature tabs remain placeholders.
 
-```powershell
-npx.cmd tsc --noEmit
-```
+Start at `/navigation/botanist/home` to preview the integrated shell. Older `/plant-record/new` links redirect to `/plant/new`.
 
 ## Main files
 
-- `App.tsx`: Main screen and styles.
-- `assets/`: App images and icons.
-- `app.json`: App name, icons, and Expo settings.
-- `package.json`: Dependencies and run commands.
+- `src/app/`: Expo Router routes and layout.
+- `src/screens/NavigationShell.tsx`: shared header, feature selection and bottom navigation.
+- `src/screens/BotanistHomeScreen.tsx`: Home summary.
+- `src/screens/ProfileScreen.tsx`: profile preview.
+- `src/screens/RecordsScreen.tsx`: searchable record list.
+- `src/data/plantRecords.ts`: shared session-only record store.
+- `src/navigation/roles.ts`: menus for each role.
+- `src/services/`: device capture and QR lookup adapters.
 
-Native iOS simulator builds require macOS and Xcode.
+## Prototype limits
 
-## Login screen design
+Account information is sample data. Login and role URLs are UI previews, not authenticated access; backend authentication and authorization are still required. Records include sample entries and live only in memory for the current session. Reloading resets them. There is no durable offline storage, server sync or scan-history store. Profile shows record count rather than an invented scan count.
 
-The app now opens `src/screens/LoginScreen.tsx`. `App.tsx` provides safe-area and status-bar setup.
+See `RECORDS.md` for the Records workflow details.
 
-- Proposed display name: Niah Biodiversity (not official branding).
-- Botanist-focused mobile login, based on the project proposal.
-- Email/password input, show/hide password, basic input errors and administrator-help messages.
-- This is a UI prototype: it does not authenticate users, store credentials, send reset emails, or provide role-based navigation yet.
-- Future integration: authenticate through the backend and use its verified account role for navigation and authorization. A client-side role selection must not grant permissions.
+## Checks
 
-For a browser preview, run `npm.cmd run web`. For lint, run `npm.cmd run lint`.
-
-Checked with TypeScript, Expo lint, and the browser preview at 320px and 390px widths. Native device and keyboard testing is still needed.
-
-## Role-based navigation preview
-
-Navigation now uses Expo Router. `index.ts` loads `src/app/_layout.tsx`; the root route still shows the original login screen. `App.tsx` is the earlier standalone login wrapper and is no longer the entry point.
-
-Run `npm.cmd run web`, then add `/navigation` to the browser address to open the Botanist shell.
-
-- `/navigation/botanist/home`: Home, Scan, Records, Sync, Profile.
-- `/navigation/conservation-officer/home`: Home, Species, Review, Reports, Profile.
-
-All feature pages are intentionally empty except for their heading. Tabs update the route and selected highlight. Unknown roles return to login; unavailable tabs return to that role's Home page.
-
-Edit `src/navigation/roles.ts` to change menu items, `src/components/RoleNavigationBar.tsx` for the bar design, and `src/screens/NavigationShell.tsx` for the blank page layout. Routes are in `src/app/`.
-
-These role URLs are UI previews, not authenticated access. The proposal's primary mobile user is the Botanist; the Conservation Officer configuration demonstrates the alternative menu only. Before adding protected content, connect the authenticated role and enforce permissions on the backend.
-
-## Botanist Home page
-
-`src/screens/BotanistHomeScreen.tsx` now renders inside Botanist Home. It includes quick actions, draft and pending-sync counts derived from three labelled sample records, recent records, and a sync reminder. Connection and last-sync information are explicitly unavailable until integration.
-
-Scan, Records, and Sync actions open the existing placeholder tabs. New plant record opens `/plant-record/new`, an explicit placeholder with a Back to Home action; it does not create data. The Conservation Officer Home remains unchanged. No new dependencies are required.
+```powershell
+npx.cmd tsc --noEmit
+npm.cmd run lint
+npm.cmd run test:records
+npx.cmd expo export --platform web
+```
