@@ -13,8 +13,11 @@ import UserDetailsView from '../views/UserSpeciesDetailView.vue'
 import AdminDashboard from '../views/AdminDashboardView.vue'
 import AdminDashboardForm from '../views/AdminDashboardFormView.vue'
 
+import Reports from '../views/ReportsView.vue'
+
 const protectedMeta = { requiresAuth: true }
 const routes = [
+  { path: '/reports', component: Reports, meta: { requiresAuth: true, roles: ['conservation_officer', 'admin'] } },
   { path: '/login', component: Login, meta: { authLayout: true } },
   { path: '/register', component: Register, meta: { authLayout: true } },
   { path: '/access-denied', component: AccessDenied, meta: { authLayout: true } },
@@ -41,7 +44,7 @@ router.beforeEach(async to => {
   try {
     const user = await refreshSession()
     if (!user) return { path: '/login', query: { redirect: to.fullPath } }
-     const allowedRoles = ['user', 'conservation_officer', 'admin']
+     const allowedRoles = to.meta.roles || ['user', 'conservation_officer', 'admin']
     
     if (!allowedRoles.includes(user.role)) {
       return '/access-denied'

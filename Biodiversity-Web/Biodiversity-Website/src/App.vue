@@ -16,7 +16,7 @@ async function recheck() {
     if (!user) {
       expired()
     } else {
-      const allowedRoles = ['user', 'conservation_officer', 'admin']
+      const allowedRoles = route.meta.roles || ['user', 'conservation_officer', 'admin']
       if (!allowedRoles.includes(user.role)) {
         await router.replace('/access-denied')
       }
@@ -38,6 +38,7 @@ async function signOut() {
 function hasAccess(linkPath) {
   const role = currentUser.value?.role
   if (role === 'admin') return true
+  if (linkPath === '/reports') return role === 'conservation_officer'
   if (linkPath === '/' || linkPath.startsWith('/species')) {
     return role === 'conservation_officer'
   }
@@ -101,6 +102,7 @@ vue
           <span aria-hidden="true">▤</span> Species management
         </RouterLink>
 
+              <RouterLink v-if="hasAccess('/reports')" to="/reports" :class="{ selected: $route.path === '/reports' }"><span aria-hidden="true">▤</span> Biodiversity reports</RouterLink>
       </nav>
 
       <div class="park">
@@ -132,7 +134,7 @@ vue
             @click="signOut">{{ busy ? 'Signing out…' : 'Sign out' }}</button></div>
       </header>
       <main id="main" tabindex="-1">
-        <div class="demo-note">Sample data · Changes are saved in this browser only. Species names and assessments are
+        <div v-if="$route.path !== '/reports'" class="demo-note">Sample data · Changes are saved in this browser only. Species names and assessments are
           fictional.</div>
         <p v-if="error" class="error" role="alert">{{ error }}</p>
         <p v-if="storageWarning" class="error" role="alert">{{ storageWarning }}</p>
