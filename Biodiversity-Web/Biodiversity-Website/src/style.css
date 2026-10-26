@@ -1090,3 +1090,7 @@ footer {
         padding: 20px;
     }
 }
+/* Allow the expanded navigation to wrap on compact screens. */
+@media (max-width: 800px) {
+  .sidebar nav { flex-wrap: wrap; }
+}
