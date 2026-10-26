@@ -48,3 +48,15 @@ session_regenerate_id(true);
 $_SESSION = ['user_id' => (int) $user['id'], 'role' => $user['role'], 'issued_at' => $now, 'last_seen' => $now];
 unset($user['password_hash'], $user['is_active']);
 respond(200, ['user' => $user, 'csrf_token' => csrfToken()]);
+
+try {
+    // Your existing login logic goes here.
+} catch (\Throwable $e) {
+    error_log(
+        'Login failure: ' . $e->getMessage()
+        . ' in ' . $e->getFile()
+        . ':' . $e->getLine()
+    );
+
+    respond(500, ['error' => 'Internal server error']);
+}

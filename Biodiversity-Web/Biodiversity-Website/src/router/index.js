@@ -12,6 +12,7 @@ import UserSpeciesView from '../views/UserSpeciesView.vue'
 import UserDetailsView from '../views/UserSpeciesDetailView.vue'
 import AdminDashboard from '../views/AdminDashboardView.vue'
 import AdminDashboardForm from '../views/AdminDashboardFormView.vue'
+import MonitoringDashboardView from '../views/MonitoringDashboardView.vue'
 
 const protectedMeta = { requiresAuth: true }
 const routes = [
@@ -27,7 +28,8 @@ const routes = [
   { path: '/species/:id', component: SpeciesDetails, meta: protectedMeta },
   { path: '/admin/users', component: AdminDashboard, meta: protectedMeta },
   { path: '/admin/users/add', component: AdminDashboardForm, meta: protectedMeta },
-  { path: '/:pathMatch(.*)*', redirect: '/' },
+  { path: '/monitoring', component: MonitoringDashboardView},
+  { path: '/monitoring', component: MonitoringDashboardView, meta: protectedMeta },
 ]
 
 const router = createRouter({

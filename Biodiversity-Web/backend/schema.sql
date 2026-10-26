@@ -42,4 +42,29 @@ CREATE TABLE IF NOT EXISTS species (
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE DATABASE IF NOT EXISTS biodiversity_db;
+USE biodiversity_db;
+
+CREATE TABLE IF NOT EXISTS sensor_readings (
+    reading_id INT AUTO_INCREMENT PRIMARY KEY,
+    plant_id INT NOT NULL,
+    temperature DECIMAL(5,2) NOT NULL,
+    humidity DECIMAL(5,2) NOT NULL,
+    distance_cm DECIMAL(8,2) NOT NULL,
+    latitude DECIMAL(10,7) NOT NULL,
+    longitude DECIMAL(10,7) NOT NULL,
+    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS threat_alerts (
+    alert_id INT AUTO_INCREMENT PRIMARY KEY,
+    plant_id INT NOT NULL,
+    alert_type VARCHAR(30) NOT NULL,
+    severity VARCHAR(20) NOT NULL,
+    message VARCHAR(255) NOT NULL,
+    latitude DECIMAL(10,7) NOT NULL,
+    longitude DECIMAL(10,7) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB
