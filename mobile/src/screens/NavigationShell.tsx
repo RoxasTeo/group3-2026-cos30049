@@ -1,16 +1,21 @@
+import { useSession } from '../auth/SessionProvider';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RoleNavigationBar from '../components/RoleNavigationBar';
 import RecordsScreen from './RecordsScreen';
 import QRScannerScreen from './QRScannerScreen';
 import ProfileScreen from './ProfileScreen';
+import SyncScreen from './SyncScreen';
 import BotanistHomeScreen from './BotanistHomeScreen';
 import { isRole, roleNavigation } from '../navigation/roles';
 
 export default function NavigationShell() {
   const { role, tab } = useLocalSearchParams<{ role: string; tab: string }>();
   const insets = useSafeAreaInsets();
+  const { session, signOut } = useSession();
+  if (!session) return <Redirect href="/" />;
+  if (role !== session.user.role) return <Redirect href={{ pathname: '/navigation/[role]/[tab]', params: { role: session.user.role, tab: 'home' } }} />;
 
   // Unknown roles return to login. Tabs outside this role return to its Home page.
   if (!isRole(role)) return <Redirect href="/" />;
@@ -28,9 +33,11 @@ export default function NavigationShell() {
         {/* Mount each Botanist feature inside the shared header and navigation bar. */}
         {role === 'botanist' && active.id === 'home' ? <BotanistHomeScreen /> :
           role === 'botanist' && active.id === 'records' ? <RecordsScreen /> :
-          role === 'botanist' && active.id === 'profile' ? <ProfileScreen /> :
+          active.id === 'profile' ? <ProfileScreen /> :
+          role === 'botanist' && active.id === 'sync' ? <SyncScreen /> :
           role === 'botanist' && active.id === 'scan' ? <ScrollView contentContainerStyle={{ padding: 24 }}><QRScannerScreen /></ScrollView> :
           <View style={styles.content}><Text accessibilityRole="header" style={styles.title}>{active.label}</Text></View>}
+        <Pressable accessibilityRole="button" onPress={signOut} style={{ alignSelf: 'flex-end', paddingHorizontal: 24, paddingVertical: 12 }}><Text style={{ color: '#173F35' }}>Sign out</Text></Pressable>
         <RoleNavigationBar items={navigation.tabs} activeTab={active.id}
           onSelect={next => router.replace({ pathname: '/navigation/[role]/[tab]', params: { role, tab: next } })} />
       </View>
@@ -50,3 +57,4 @@ const styles = StyleSheet.create({
   content: { flex: 1, padding: 24 },
   title: { color: '#203C33', fontSize: 26, fontWeight: '600', letterSpacing: -0.6 },
 });
+

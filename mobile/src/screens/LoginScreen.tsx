@@ -1,3 +1,7 @@
+import { Redirect } from 'expo-router';
+import { useSession } from '../auth/SessionProvider';
+import { loginRequest } from '../auth/loginRequest';
+import { apiBaseUrl } from '../auth/apiConfig';
 // React hooks: useState remembers changing values; useRef keeps a reference to an input.
 import { useRef, useState } from 'react';
 // React Native provides the layout, text, input, button, and scrolling components.
@@ -63,12 +67,15 @@ function BotanicalArt() {
 // Main screen component. Updating its state causes React to render the changed UI.
 export default function LoginScreen() {
   // Read device spacing and width so the layout can adapt to different phones.
+  const { session, signIn: acceptSession } = useSession();
+  const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   // This reference lets the email keyboard's Next action focus the password input.
   const passwordInput = useRef<TextInput>(null);
   // Controlled input values: setters update the text displayed in each field.
-  // This component holds credentials in memory; it does not save or send them.
+  // This component holds credentials in memory; it sends them to the sign-in API and never saves the password.
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   // false hides the password; true displays its characters.
@@ -85,15 +92,23 @@ export default function LoginScreen() {
   // A login password must be nonempty; its correctness needs backend verification.
   const passwordError = submitted && password.length === 0;
 
-  // Called by the Sign in button or the password keyboard's Go action.
-  // Currently this only validates the inputs and shows a preview message.
-  // Future authentication must use the backend's verified role before navigating.
-  function signIn() {
+  // Verify credentials on the backend and use the returned account role.
+  async function signIn() {
+    if (inFlight.current) return;
     setSubmitted(true);
-    // condition ? message : "" selects a notice only when both fields pass validation.
-    setNotice(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) && password.length > 0
-      ? 'This is a design preview. Account sign-in will be available when the authentication service is connected.' : '');
+    setNotice('');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || !password) return;
+    inFlight.current = true;
+    setBusy(true);
+    try {
+      const nextSession = await loginRequest(apiBaseUrl(), email, password);
+      setPassword('');
+      acceptSession(nextSession);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Sign-in failed. Please try again.');
+    } finally { inFlight.current = false; setBusy(false); }
   }
+  if (session) return <Redirect href={{ pathname: '/navigation/[role]/[tab]', params: { role: session.user.role, tab: 'home' } }} />;
 
   return (
     // JSX describes the UI. KeyboardAvoidingView adjusts layout when the keyboard opens.
@@ -112,7 +127,7 @@ export default function LoginScreen() {
           {/* Main form area: bottom padding also respects the device safe area. */}
           <View style={[s.body, { paddingBottom: Math.max(insets.bottom, 22) }]}>
             {/* This is a visual role label, not an authorization check. */}
-            <View style={s.role}><Icon name="leaf" color={colors.forest} /><Text style={s.roleText}>BOTANIST FIELD ACCESS</Text></View>
+            <View style={s.role}><Icon name="leaf" color={colors.forest} /><Text style={s.roleText}>TEAM SIGN IN</Text></View>
             <Text accessibilityRole="header" style={s.title}>Welcome back</Text>
             <Text style={s.subtitle}>Sign in to your field workspace.</Text>
             <View style={s.form}>
@@ -139,7 +154,7 @@ export default function LoginScreen() {
               </View>
               {passwordError && <Text accessibilityRole="alert" style={s.error}>Enter your password.</Text>}
               {/* Pressable calls signIn and applies a temporary style while being pressed. */}
-              <Pressable accessibilityRole="button" onPress={signIn} style={({ pressed }) => [s.signIn, pressed && s.pressed]}><Text style={s.signInText}>Sign in</Text><Icon name="arrow" color="#FFFFFF" /></Pressable>
+              <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy, busy }} onPress={signIn} style={({ pressed }) => [s.signIn, (pressed || busy) && s.pressed]}><Text style={s.signInText}>{busy ? 'Signing in...' : 'Sign in'}</Text><Icon name="arrow" color="#FFFFFF" /></Pressable>
               {/* !! converts the message to a boolean; an empty message renders nothing.
                   The live region announces message changes to supported screen readers. */}
               {!!notice && <View style={s.notice}><Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={s.noticeText}>{notice}</Text></View>}
@@ -147,7 +162,7 @@ export default function LoginScreen() {
             {/* Account access information and administrator-help action. */}
             <View style={s.accessNote}><Icon name="lock" /><Text style={s.accessText}>Access is assigned by your organisation.</Text></View>
             <View style={s.divider} />
-            <View style={s.support}><Text style={s.supportText}>Need an account?</Text><Pressable accessibilityRole="button" onPress={() => setNotice('Ask your project administrator to create your account and assign your Botanist role.')} style={s.supportButton}><Text style={s.link}>Contact your administrator</Text></Pressable></View>
+            <View style={s.support}><Text style={s.supportText}>Need an account?</Text><Pressable accessibilityRole="button" onPress={() => setNotice('Ask your project administrator to create your account and assign your role.')} style={s.supportButton}><Text style={s.link}>Contact your administrator</Text></Pressable></View>
             <Text style={s.footer}>SMART GROUND-TRUTHING & BIODIVERSITY SYSTEM</Text>
           </View>
         </View>

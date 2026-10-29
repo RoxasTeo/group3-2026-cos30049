@@ -88,3 +88,12 @@ test('low-accuracy fix can remain a draft but cannot be marked ready; four-photo
   assert.equal(ready.status, 'Pending sync');
   assert.throws(() => r.savePlantRecord({ ...input('NIAH-MANY-PHOTOS'), photos: Array.from({ length: 5 }, (_, i) => ({ id: String(i), uri: 'file:///photo.jpg' })) }), /up to 4/);
 });
+
+test('signing out resets local preview records instead of exposing another account changes', () => {
+  const r = repository();
+  const count = r.getRecordsSnapshot().length;
+  r.savePlantRecord(input('NIAH-PRIVATE-DRAFT'));
+  r.resetPlantRecords();
+  assert.equal(r.getRecordsSnapshot().length, count);
+  assert.equal(r.getPlantRecord('NIAH-PRIVATE-DRAFT'), undefined);
+});

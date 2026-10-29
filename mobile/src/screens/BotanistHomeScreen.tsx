@@ -72,7 +72,7 @@ export default function BotanistHomeScreen() {
 
       <View style={s.syncCard}>
         <HomeIcon kind="sync" />
-        <View style={s.actionCopy}><Text style={s.syncTitle}>Bring your discoveries together</Text><Text style={s.syncText}>{pending} records are waiting to sync. Open Sync to view the page preview.</Text><Pressable accessibilityRole="button" onPress={() => goTo('sync')} style={s.syncButton}><Text style={s.link}>Open Sync →</Text></Pressable></View>
+        <View style={s.actionCopy}><Text style={s.syncTitle}>Bring your discoveries together</Text><Text style={s.syncText}>{pending} records are waiting to sync. Open Sync to review the queue. Cloud uploads are not connected yet.</Text><Pressable accessibilityRole="button" onPress={() => goTo('sync')} style={s.syncButton}><Text style={s.link}>Open Sync →</Text></Pressable></View>
       </View>
       <Text style={s.footer}>Every record is a step towards protecting biodiversity.</Text>
     </ScrollView>
@@ -126,3 +126,4 @@ const s = StyleSheet.create({
   footer: { fontSize: 10, color: '#748071', lineHeight: 17, textAlign: 'center', marginTop: 22 },
   pressed: { opacity: 0.75 },
 });
+

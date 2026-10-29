@@ -33,6 +33,8 @@ let snapshot: readonly PlantRecord[] = [
   makeSample('NIAH-PLANT-009', 'Forest fern', 'Synced', '2026-10-15T14:30:00+08:00', { description: 'Sample fern observation on shaded limestone.', location: sampleLocation }),
   makeSample('NIAH-PLANT-011', 'Understorey palm', 'Failed', '2026-10-15T13:06:00+08:00', { description: 'Sample palm observation in damp understorey.', location: sampleLocation, syncError: 'Sample upload failure: connection interrupted.' }),
 ];
+const initialSnapshot = snapshot;
+export function resetPlantRecords() { snapshot = initialSnapshot; publish(); }
 const listeners = new Set<() => void>();
 const key = (id: string) => id.trim().toUpperCase();
 const copy = (record: PlantRecord): PlantRecord => ({ ...record, photos: record.photos.map(p => ({ ...p })), location: record.location ? { ...record.location } : null });
