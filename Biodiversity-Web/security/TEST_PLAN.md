@@ -1,3 +1,5 @@
+> HISTORICAL ENCRYPTION PLAN: Field encryption and its original test tools are deferred pending Mobile integration. SEC-05, SEC-06, SEC-08 and SEC-09 below are future integration requirements, not active implementation claims. Authentication, authorization, CSRF, input, runtime-permission and business regression tests remain applicable. See [DATA_PROTECTION.md](DATA_PROTECTION.md) for migration-005 rollback. Encryption-test commands below describe the historical version and are not runnable in the current branch.
+
 # Local Security Test Plan
 
 Objective: verify that sensitive database fields use authenticated encryption, unauthorized requests cannot access them, migrations support recovery, and existing Web functionality remains operational. This plan provides local SSDLC evidence for security design, verification, remediation and reassessment. It is not a formal penetration test or compliance certification.

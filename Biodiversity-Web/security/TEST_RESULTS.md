@@ -1,6 +1,10 @@
+> HISTORICAL RECORD: These results describe the encrypted implementation tested on 2026-10-31. On 2026-11-01, field encryption was deferred pending Mobile integration. They do not certify field encryption in the current working version. Current rollback and protection boundaries are documented in [DATA_PROTECTION.md](DATA_PROTECTION.md).
+
 # Local Sensitive Data Encryption and Security Reassessment Results
 
 Test date: 2026-10-31 (Asia/Kuala_Lumpur). Test scope: the local main working tree, baseline `74f6119` plus the changes under test, which were uncommitted at test time. No deployment or physical hardware was involved. The implementation and test documents were subsequently committed as `1704288` and pushed to main.
+
+For the current encryption-deferral regression results, see [Web test results](../TEST_RESULTS.md#encryption-deferral-regression-2026-11-01).
 
 ## Overall Result
 

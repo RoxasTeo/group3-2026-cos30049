@@ -2,7 +2,7 @@
 
 For the complete first-time installation and startup sequence, follow the [Web Setup Guide](../SETUP.md). The reference below focuses on authentication and API integration.
 
-Sensitive fields now require a private encryption key and operator data migration before using existing accounts. Follow `../security/DATA_PROTECTION.md` before account provisioning. API responses retain their original format; SQL integrations must use `email_lookup` and the shared encryption helpers rather than querying plaintext email. Passwords remain bcrypt hashes.
+Application-level sensitive-field encryption is deferred until Web and Mobile can adopt a shared data contract. No encryption key is needed for a fresh installation. Existing migration-005 databases must be converted using the [rollback instructions](../security/DATA_PROTECTION.md) before running this version. Passwords remain bcrypt hashes.
 
 PHP 8.1+ with PDO MySQL and MySQL/MariaDB. Serve **only `backend/public`** as the web root. Public registration provisions only the General User role. Officers and botanists are provisioned by an administrator; clients cannot select a privileged role during registration.
 

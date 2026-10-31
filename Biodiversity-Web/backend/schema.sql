@@ -1,18 +1,11 @@
 CREATE TABLE IF NOT EXISTS users (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL,
-    email_lookup CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL UNIQUE,
+    name VARCHAR(120) NOT NULL,
+    email VARCHAR(254) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     role ENUM('user', 'conservation_officer', 'botanist', 'admin') NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB;
-
--- Initialized by the migration or first CLI-provisioned account, never by public requests.
-CREATE TABLE IF NOT EXISTS data_protection_state (
-    id TINYINT PRIMARY KEY,
-    key_check TEXT NOT NULL
 ) ENGINE=InnoDB;
 
 -- Persistent per-account throttling, including nonexistent accounts.

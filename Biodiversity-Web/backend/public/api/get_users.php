@@ -18,8 +18,7 @@ try {
         ORDER BY name ASC
     ");
     
-    $usersList = array_map('revealUser', $stmt->fetchAll());
-    usort($usersList, fn($a, $b) => strcasecmp($a['name'], $b['name']));
+    $usersList = $stmt->fetchAll();
     respond(200, $usersList);
 
 } catch (\PDOException $e) {

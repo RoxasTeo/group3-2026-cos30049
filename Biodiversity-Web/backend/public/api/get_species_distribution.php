@@ -40,7 +40,6 @@ $sql = 'SELECT o.id, o.submitted_by, o.plant_tag, o.species_id, o.latitude, o.lo
 $stmt = $db->prepare($sql); $stmt->execute($params);
 $records = $stmt->fetchAll();
 foreach ($records as &$record) {
-    $record['submitter_name'] = revealData($record['submitter_name'], 'users.name:' . $record['submitted_by']);
     foreach (['id', 'submitted_by', 'species_id'] as $key) $record[$key] = (int) $record[$key];
     foreach (['latitude', 'longitude', 'accuracy_m'] as $key) $record[$key] = $record[$key] === null ? null : (float) $record[$key];
     $record['reference'] = 'OBS-' . str_pad((string) $record['id'], 6, '0', STR_PAD_LEFT);

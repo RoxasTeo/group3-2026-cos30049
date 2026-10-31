@@ -1,3 +1,5 @@
+> Current status (2026-11-01): application-level sensitive-field encryption is deferred until Mobile integration. Do not apply migration 005 or configure a new field-encryption key for a fresh installation. Previously encrypted databases require the [rollback guide](security/DATA_PROTECTION.md).
+
 # Web deployment and data protection
 
 This workspace is locally verified, not deployed or certified for production. Hardware, Mobile synchronization and cloud deployment remain separate; server-side IoT processing is implemented. Do not interpret a password hash as encryption of personal data.
@@ -13,7 +15,7 @@ This workspace is locally verified, not deployed or certified for production. Ha
 
 ## Encryption and operational evidence still required
 
-Enable encryption at rest for the managed database/disk, logs containing personal data and backups; keep keys in the provider's managed key service with restricted access and rotation. Record the provider settings and a successful backup/restore check. These require the team's actual hosting account and cannot be established by local application code. Application-level encryption of user profiles and observation/review text is now implemented. Generate a private key outside Git and perform the explicit operator migration described in `security/DATA_PROTECTION.md`. This does not encrypt the whole database volume or securely erase old physical plaintext copies.
+Enable encryption at rest for the managed database/disk, logs containing personal data and backups; keep keys in the provider's managed key service with restricted access and rotation. Record the provider settings and a successful backup/restore check. These require the team's actual hosting account and cannot be established by local application code. Application-level encryption of user profiles and observation/review text is deferred until joint Mobile integration. Fresh installations need no field-encryption key. Previously encrypted databases require the operator rollback described in `security/DATA_PROTECTION.md`.
 
 Passwords use bcrypt hashing. Sessions use HttpOnly, SameSite cookies with Secure required for production. Writes require CSRF tokens and roles are reloaded from the account on every protected non-IoT API request. General users can read the knowledge repository; only officers/admins manage species and review/export records. Botanists use field submission APIs and do not gain Web management access.
 
@@ -25,4 +27,4 @@ Run the non-IoT acceptance tests described in `WEB_ACCEPTANCE.md`, then verify o
 Tracking deployments must also apply migration 004 before using the updated monitoring APIs; follow `TRACKING.md`. Keep per-device upload keys private. Tested local functionality is not evidence of hardware or production readiness.
 
 
-Before using this version with an existing database, complete migration 005 using its CLI tool. Runtime credentials need only data read/write grants; schema migration and security fault-injection tests require separate operator privileges. See `security/TEST_PLAN.md` and `security/TEST_RESULTS.md`.
+Before using this version with a database previously encrypted by migration 005, complete the documented rollback using its original key. Do not apply the former encryption migration to a fresh database. Runtime credentials need only data read/write grants; schema migration and security fault-injection tests require separate operator privileges. See `security/TEST_PLAN.md` and `security/TEST_RESULTS.md`.

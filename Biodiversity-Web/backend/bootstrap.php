@@ -60,7 +60,6 @@ function api(array $methods): void {
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: DENY');
     header('Referrer-Policy: same-origin');
-    if (setting('DATA_ENCRYPTION_MAINTENANCE') === 'true') { header('Retry-After: 60'); respond(503, ['error' => 'Data protection maintenance in progress. Please try again shortly.']); }
     set_exception_handler(function (Throwable $error): void {
         error_log((string) $error);
         respond(500, ['error' => 'Internal server error']);
@@ -136,7 +135,6 @@ function requireLogin(): array {
         destroyLogin();
         respond(401, ['error' => 'Session expired']);
     }
-    assertDatabaseKey(database());
     $stmt = database()->prepare('SELECT id, name, email, role, is_active FROM users WHERE id = ?');
     $stmt->execute([$_SESSION['user_id']]);
     $user = $stmt->fetch();
@@ -144,7 +142,6 @@ function requireLogin(): array {
         destroyLogin();
         respond(401, ['error' => 'Authentication required']);
     }
-    $user = revealUser($user);
     unset($user['is_active']);
     $_SESSION['last_seen'] = $now;
     $_SESSION['role'] = $user['role'];
@@ -156,5 +153,3 @@ function requireRole(array $roles): array {
     if (!in_array($user['role'], $roles, true)) respond(403, ['error' => 'Insufficient permissions']);
     return $user;
 }
-
-require_once __DIR__ . '/data_protection.php';

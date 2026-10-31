@@ -1,3 +1,5 @@
+> Status update (2026-11-01): field encryption is deferred pending Mobile integration. Earlier encryption checks describe the previous version, not current protection. See `security/DATA_PROTECTION.md`.
+
 # Main Web 本机验收结果
 
 日期：2026-10-31（Asia/Kuala_Lumpur）
@@ -50,3 +52,18 @@
 ## 后续本地加密验收
 
 敏感字段加密、密钥错误／篡改拒绝、旧数据迁移和加密备份恢复，以及运行账号最小权限的后续测试，见 `security/TEST_RESULTS.md`。此更新不表示已经部署 HTTPS 或完成整机／云端安全认证。
+
+## Encryption deferral regression (2026-11-01)
+
+Local main working tree only; not committed or pushed. Sensitive-field encryption was withdrawn pending joint Mobile integration. The existing isolated local database was backed up in full and converted using the original key. User IDs, password hashes, roles and relationships were preserved. The final rollback check found no encryption schema or encrypted fields. Private keys and historical encrypted backups were retained outside Git for recovery.
+
+Verification after conversion:
+
+- 26 database integration methods passed, including observation review, reports, distribution, monitoring, history, automatic alerts and tracking. The local service used a dedicated restricted runtime account and a synthetic shared device test key, not physical hardware.
+- 6 Web acceptance groups passed, covering CRUD, photos, inputs, registration policy, live roles, disabled accounts, CSRF and private paths.
+- 2 browser flows passed: registration/login/logout/throttling and role routes/species/photo CRUD/user/admin navigation.
+- Production build and 9 frontend tests passed; all PHP syntax checks passed.
+- Restricted runtime-account permissions check passed.
+- `rollback_sensitive_data_test.php` passed against its own randomly named temporary database: missing-key refusal before mutation, authenticated conversion, preserved credentials/relationships, unique plaintext email constraint and repeat safety. Its temporary database and snapshots were cleaned up.
+
+The normal backend no longer loads cryptographic field helpers or requires an encryption key. Password hashing, sessions, role checks and CSRF controls remain. The legacy cipher helper is CLI-only and exists solely for converting previously encrypted databases. Historical encryption test documents are explicitly marked as such; this version does not claim encryption of personal fields at rest.

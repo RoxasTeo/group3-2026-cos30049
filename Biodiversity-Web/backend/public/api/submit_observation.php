@@ -24,7 +24,7 @@ $values = [
     (int) $user['id'], $reference, strtoupper($tag), $speciesId,
     observationText($body, 'common_name', 120) ?: 'Unidentified plant',
     observationText($body, 'scientific_name', 160), observationText($body, 'family', 100),
-    protectData(observationText($body, 'field_notes', 5000, true), 'observations.field_notes:' . $user['id'] . ':' . $reference), protectData(observationText($body, 'habitat', 2000), 'observations.habitat:' . $user['id'] . ':' . $reference),
+    observationText($body, 'field_notes', 5000, true), observationText($body, 'habitat', 2000),
     $height, $latitude, $longitude, $accuracy, $capturedAt ?: null,
     json_encode($photos, JSON_THROW_ON_ERROR), count($photos),
 ];

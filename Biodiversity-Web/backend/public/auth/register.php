@@ -29,23 +29,23 @@ if (strlen($password) < 12 || strlen($password) > 72) {
 
 try {
     $db = database();
-    assertDatabaseKey($db);
 
     // Confirm email uniquely satisfies system structural expectations
-    $check = $db->prepare('SELECT id FROM users WHERE email_lookup = ?');
-    $check->execute([emailLookup($email)]);
+    $check = $db->prepare('SELECT id FROM users WHERE email = ?');
+    $check->execute([$email]);
     if ($check->fetch()) {
         respond(409, ['error' => 'An account with this email address already exists.']);
     }
 
-    // Secure encryption hashing transformation algorithm
+    // Hash the password with bcrypt; never store the password itself.
     $hashedPassword = password_hash($password, PASSWORD_BCRYPT, ['cost' => 10]);
 
-    createProtectedUser($db, $name, $email, $hashedPassword, $role);
+    $stmt = $db->prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)');
+    $stmt->execute([$name, $email, $hashedPassword, $role]);
 
     respond(201, ['success' => 'Account created successfully!']);
 } catch (\Throwable $e) {
     if ($e instanceof PDOException && ($e->errorInfo[1] ?? null) === 1062) respond(409, ['error' => 'An account with this email address already exists.']);
-    error_log('Critical registration database failure: ' . $e->getMessage());
+    error_log('Registration database failure. Inspect database configuration privately.');
     respond(500, ['error' => 'Internal server error']);
 }

@@ -53,3 +53,11 @@ Cloud hosting, a live HTTPS certificate, database/backup encryption at rest, rea
 ## Sensitive-data protection update
 
 User names/emails and observation/review text are now encrypted at application level. The updated setup/migration and local security reassessment are documented in `security/DATA_PROTECTION.md`, `security/TEST_PLAN.md` and `security/TEST_RESULTS.md`. These supersede the earlier absence of field encryption; the cloud/disk/HTTPS limitations still apply.
+
+## Field encryption deferred (2026-11-01)
+
+Application-level field encryption has been withdrawn locally pending joint Web/Mobile integration. Names, email addresses and observation/review text use the original database format; passwords remain bcrypt hashes. The current schema needs no encryption key. Previously encrypted databases require the operator rollback in `security/DATA_PROTECTION.md`. Earlier encryption results are historical evidence, not the current feature status.
+
+## Field encryption deferred (2026-11-01)
+
+Application-level field encryption has been withdrawn locally pending joint Web/Mobile integration. Names, email addresses and observation/review text use the original database format; passwords remain bcrypt hashes. The current schema needs no encryption key. Previously encrypted databases require the operator rollback in `security/DATA_PROTECTION.md`. Earlier encryption results are historical evidence, not the current feature status.

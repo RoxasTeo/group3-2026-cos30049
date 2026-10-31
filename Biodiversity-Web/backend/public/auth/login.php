@@ -13,8 +13,7 @@ if (strlen($email) > 254 || !filter_var($email, FILTER_VALIDATE_EMAIL) || $passw
     respond(400, ['error' => 'Invalid email or password format']);
 }
 $db = database();
-    assertDatabaseKey($db);
-$key = emailLookup($email);
+$key = hash('sha256', $email);
 $now = time();
 // Lock one account row so concurrent requests cannot bypass the attempt limit.
 $db->beginTransaction();
@@ -30,8 +29,8 @@ if ($attempts >= 5) {
     header('Retry-After: ' . max(1, 900 - ($now - $started)));
     respond(429, ['error' => 'Too many login attempts. Try again later.']);
 }
-$stmt = $db->prepare('SELECT id, name, email, password_hash, role, is_active FROM users WHERE email_lookup = ?');
-$stmt->execute([emailLookup($email)]);
+$stmt = $db->prepare('SELECT id, name, email, password_hash, role, is_active FROM users WHERE email = ?');
+$stmt->execute([$email]);
 $user = $stmt->fetch();
 // A valid dummy hash keeps password verification on the unknown-account path.
 $hash = $user ? $user['password_hash'] : '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
@@ -45,7 +44,6 @@ if (!$user || !$valid || !$user['is_active']) {
 $stmt = $db->prepare('DELETE FROM auth_login_attempts WHERE account_key = ?');
 $stmt->execute([$key]);
 $db->commit();
-$user = revealUser($user);
 session_regenerate_id(true);
 $_SESSION = ['user_id' => (int) $user['id'], 'role' => $user['role'], 'issued_at' => $now, 'last_seen' => $now];
 unset($user['password_hash'], $user['is_active']);

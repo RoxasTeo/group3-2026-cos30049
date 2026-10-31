@@ -1,71 +1,49 @@
-# Local Sensitive Data Protection and Operations Guide
+# Data Protection Status and Encryption Rollback
 
-For a complete first-time installation, start with the [Web Setup Guide](../SETUP.md). This document provides detailed encryption, migration and recovery instructions.
+## Current Status (2026-11-01)
 
-This implementation provides application-level field encryption. It does not mean that the entire MySQL database or disk is encrypted, and it does not replace HTTPS. The current environment uses a local database and has not been deployed.
+Application-level sensitive-field encryption is deferred until Web and Mobile can use one agreed data contract. Fresh local installations require **no encryption key**, HMAC email index or encryption migration. Use the current `backend/schema.sql` and [Web Setup Guide](../SETUP.md).
 
-## Protection Scope
+User names, email addresses, observation `field_notes`/`habitat` and review `notes` now use the original unencrypted database format. Passwords remain bcrypt hashes. Session authentication, live account/role checks, CSRF controls, input validation and the restricted runtime database account remain in place. Device upload keys remain hashed.
 
-| Data | Storage |
-| --- | --- |
-| User names and email addresses | AES-256-GCM ciphertext |
-| Observation `field_notes` and `habitat` | AES-256-GCM ciphertext |
-| Review `notes` | AES-256-GCM ciphertext |
-| Login email lookup | HMAC-SHA-256 index using a separately derived key; searches do not use plaintext or encrypted email values directly |
-| Passwords | Existing bcrypt hashes; passwords cannot be decrypted |
-| Device upload keys | Hashes of random keys; the original key is shown only when created or replaced |
+This does not claim encryption at rest for personal information, photos, GPS or database files. Keep the local database and backups private. Full-disk/database encryption, production HTTPS and the shared Web/Mobile encryption design remain separate work.
 
-Public species knowledge, taxonomy, statuses, review decisions/checklists, plant photographs, GPS coordinates, sensor values, IDs and timestamps are not all encrypted in this implementation. Photographs may contain metadata; upload only plant photographs permitted by the project. The system has no separate module for the generic scope term "performance records", so protection of such a module is not claimed. Additional protection requirements for location or photograph data should be agreed separately.
+## Existing Databases Previously Encrypted by Migration 005
 
-Each encryption operation uses a fresh 12-byte random IV and a 16-byte authentication tag. The field and its owning user, observation or review identity are included as authenticated data to prevent moving ciphertext between rows or fields. The format is `enc:v1:<base64>`; Base64 is only a container, while AES-GCM provides confidentiality. HKDF derives separate keys for encryption and email lookup. The database also stores an authenticated encrypted key-check marker. Login and sensitive writes verify the key before proceeding, so even a correctly formatted but mismatched key cannot silently create mixed-key records. The email index reveals equality between matching values, a trade-off required for unique email addresses and login lookup.
+Do not simply switch code or generate a replacement key: this version expects the original field format. Convert the existing database using its matching original key first. Preserve IDs, password hashes, roles, decisions and relationships; do not recreate accounts or delete observations to bypass migration.
 
-Implementation references: [PHP OpenSSL authenticated encryption](https://www.php.net/openssl-encrypt) and [PHP AEAD specification](https://wiki.php.net/rfc/openssl_aead). No custom block cipher is used.
+1. Stop **all** backend instances and other writers. The current runtime no longer has the old encryption maintenance gate; setting a variable alone does not stop services.
+2. Back up the complete database to a restricted directory outside Git. Keep the original key and old encrypted snapshots. The rollback tool also creates and verifies a private encrypted sensitive-field snapshot, but this is not a full backup.
+3. Retain these settings in the local, ignored backend `.env` for the operator tool only:
 
-## Keys and Local Configuration
-
-1. Create a private directory **outside all Git working trees**. On Windows, restrict the ACL to the runtime account and SYSTEM. On POSIX, recommended permissions are 0700 for directories and 0600 for files. The generator neither overwrites existing files nor displays key contents.
-2. Run `php Biodiversity-Web/backend/bin/generate-data-key.php <private-key-file>`.
-3. In the Git-ignored `Biodiversity-Web/backend/.env`, set `DATA_ENCRYPTION_KEY_FILE` to the absolute key-file path and `DATA_ENCRYPTION_BACKUP_DIR` to a private backup directory outside the repository. Never commit keys, real credentials or encrypted backups to Git.
-4. Keep a separate secure backup of the key. **Losing the key makes existing ciphertext and encrypted backups unrecoverable.** Do not replace an active key file directly. This version has no online key-rotation service; rotation requires a controlled process using the old key to decrypt, re-encrypt and rebuild lookup indexes.
-
-The local preview uses a dedicated database runtime account with only SELECT/INSERT/UPDATE/DELETE on the local database. Schema creation, migrations and trigger-based fault injection use separate operator privileges. The runtime account cannot create tables, drop databases or change grants. Real database passwords remain in private configuration and are excluded from documentation and test output.
-
-## Migrating an Existing Database
-
-Application code and field formats must be upgraded together. Changing only the schema or only the code is insufficient; older services that query plaintext email addresses will no longer work. API response formats for names, emails, observations and review text remain unchanged; the backend decrypts them after authentication and authorization.
-
-1. Back up the complete database and stop all writers. Set `DATA_ENCRYPTION_MAINTENANCE=true` in the actual runtime configuration; Web APIs will return a maintenance response. Setting an environment variable in one terminal does not stop other services from writing.
-2. Check key and backup directory permissions, then run:
-
-   ```sh
-   php Biodiversity-Web/backend/bin/encrypt-sensitive-data.php --check
-   php Biodiversity-Web/backend/bin/encrypt-sensitive-data.php --apply
-   php Biodiversity-Web/backend/bin/encrypt-sensitive-data.php --check
+   ```dotenv
+   DATA_ENCRYPTION_KEY_FILE=C:/private/path/to/original/data.key
+   DATA_ENCRYPTION_BACKUP_DIR=C:/private/path/to/backups
+   DATA_ENCRYPTION_MAINTENANCE=true
    ```
 
-   `--check` returns 0 when encryption and index structure are correct, or 2 when migration is pending. The tool does not display data contents.
-3. `--apply` first creates and verifies an **encrypted snapshot of sensitive fields** in memory. It then expands user fields to TEXT, creates the unique email lookup index and updates sensitive fields within a transaction. User IDs, password hashes, roles, review decisions and foreign-key relationships are preserved. This snapshot is not a complete database backup.
-4. MySQL DDL and all field updates cannot form one fully rollback-capable transaction. If the schema stage fails, remain in maintenance mode, investigate and retry. Existing ciphertext is authenticated and decrypted before processing to avoid double encryption. Incorrect keys or damaged ciphertext are never treated as plaintext.
-5. Migration clears legacy login-attempt counters once; subsequent attempts use the keyed email index. Run it during maintenance, and never repeatedly migrate to bypass login throttling.
-6. Verify login, permissions and business operations, then set `DATA_ENCRYPTION_MAINTENANCE=false` and start services.
+   Paths must be absolute and outside every Git working tree. Do not overwrite an existing key or expose credentials. The normal Web runtime ignores these settings and does not load the legacy cipher helper.
+4. In a private PowerShell terminal at the repository root, temporarily use a database operator account with schema privileges. Keep the ordinary `.env` runtime account restricted:
 
-For a new database, use the updated `schema.sql`. After configuring the key, create the first account through the CLI. The CLI initializes the key-check marker only when the users table is empty; public registration cannot initialize it. Test fixture tools use the same encrypted write path rather than inserting plaintext users.
+   ```powershell
+   $env:DB_USER = 'YOUR_DATABASE_OPERATOR'
+   $operatorSecret = Read-Host 'Database operator password' -AsSecureString
+   $env:DB_PASSWORD = [System.Net.NetworkCredential]::new('', $operatorSecret).Password
+   php Biodiversity-Web/backend/bin/rollback-sensitive-data.php --check
+   php Biodiversity-Web/backend/bin/rollback-sensitive-data.php --apply
+   php Biodiversity-Web/backend/bin/rollback-sensitive-data.php --check
+   Remove-Item Env:DB_USER
+   Remove-Item Env:DB_PASSWORD
+   Remove-Variable operatorSecret
+   ```
 
-## Restoring Sensitive Fields
+   Run one command at a time and inspect its result. The initial check returns 2 when a verified conversion is pending; the final check must return 0. If any command fails, stop, clear temporary credentials, investigate and keep all writers offline. Do not start the unencrypted application against remaining ciphertext.
+5. The tool authenticates encrypted fields using the original key, verifies the private encrypted snapshot before writes, converts protected fields, restores VARCHAR user fields and the unique plaintext email index, and removes `email_lookup`/`data_protection_state`. Old keyed login-attempt counters are cleared once. IDs, password hashes and business relationships are preserved.
+6. MySQL schema changes are not fully transactional with field updates. If the schema stage fails, keep writers stopped and rerun with the original key after investigating. The tool accepts already-converted fields for retry, but never treats invalid ciphertext as plaintext. Restore the full pre-conversion backup with its matching code/key if recovery is needed.
+7. After the final check passes, set `DATA_ENCRYPTION_MAINTENANCE=false`, clear operator overrides and start the normal services. Verify existing login, registration, review, reports and maps. Keep the old private key and backups until recovery requirements have been resolved; do not commit or automatically delete them.
 
-Keep the key that matches the backup. With all writers stopped and maintenance mode enabled, run:
+`backend/bin/legacy-field-encryption.php` is CLI-only compatibility code for this rollback. It is not required by Web requests and does not enable field encryption. Encryption-generation, apply and encrypted restore commands have been removed from the active setup.
 
-```sh
-php Biodiversity-Web/backend/bin/restore-sensitive-data.php <private-encrypted-backup> --apply
-```
+## Security Evidence
 
-The tool verifies that the backup belongs to the current database, original rows still exist, and observation/review identities have not changed. It then saves the sensitive fields **as ciphertext again**. It does not restore the entire database, overwrite password hashes or decisions, or delete rows created after the backup. Keep a current full database backup before restoring to avoid unintentionally replacing correct data with older values.
-
-## Protection Boundaries
-
-- Keys are stored in a persistent private directory outside the repository and temporary preview directory. The local `.env` references the actual path; keys are not distributed with the repository.
-- Encryption does not provide tamper protection for every database column. Roles, statuses and other unencrypted fields still depend on database integrity and business authorization.
-- Missing or incorrect keys and modified ciphertext cause reads to fail, without plaintext fallback. Web responses contain generic errors. Exception argument output is disabled to avoid including names, emails or passwords in stack traces.
-- The backend must still decrypt data for authorized users. Attackers with host access and the ability to read the key are outside this field-encryption protection boundary.
-- Historical database files, undo/redo logs, old backups and system snapshots may retain earlier plaintext. Secure erasure of these physical copies is not claimed. Full disk/database/backup protection and production HTTPS require separate acceptance checks.
-- The scope's trainers/guides terminology differs from the current Admin/Conservation Officer/Botanist/General User roles. Permissions follow the botanical project roles; the team should confirm the correspondence. This alone does not establish regulatory compliance.
+[TEST_RESULTS.md](TEST_RESULTS.md) and [TEST_PLAN.md](TEST_PLAN.md) retain the previous encryption assessment as explicitly marked historical evidence. They must not be used to claim that the current version encrypts these fields. Shared encryption, migration and reassessment will be designed with the Mobile team later.

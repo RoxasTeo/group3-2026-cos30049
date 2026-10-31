@@ -11,12 +11,12 @@ Includes species/photo management, knowledge search, observation review, distrib
 
 ## Run locally
 
-**Start here:** [Complete Web Setup Guide](Biodiversity-Web/SETUP.md) covers prerequisites, a fresh database, private encryption keys, initial accounts, both development servers, troubleshooting and existing-database upgrades.
+**Start here:** [Complete Web Setup Guide](Biodiversity-Web/SETUP.md) covers prerequisites, a fresh database, initial accounts, both development servers, troubleshooting and existing-database upgrades.
 
 Prerequisites: Node matching the frontend engines requirement, PHP 8.1+ with PDO MySQL and image support, and MySQL/MariaDB using InnoDB.
 
-1. Create a database. For a fresh installation import `Biodiversity-Web/backend/schema.sql` into it. For existing installations back up first and apply only missing migrations 001–005; inspect existing indexes before applying 002/003. Do not import test fixtures into a real database.
-2. Copy `Biodiversity-Web/backend/.env.example` to `Biodiversity-Web/backend/.env`. First generate/configure the private encryption key outside Git as described in `Biodiversity-Web/security/DATA_PROTECTION.md`. Migration 005 is a CLI data migration, not SQL-only. Set DB credentials, `APP_ORIGIN=http://localhost:5173` and `COOKIE_SECURE=false` for local HTTP. Environment variables override this file. Keep `.env` private.
+1. Create a database. For a fresh installation import `Biodiversity-Web/backend/schema.sql` into it. For existing installations back up first and apply only missing migrations 001–004; inspect existing indexes before applying 002/003. Do not import test fixtures into a real database.
+2. If the database was previously encrypted by migration 005, first follow the [rollback instructions](Biodiversity-Web/security/DATA_PROTECTION.md). Field encryption is deferred until Mobile integration. Copy `Biodiversity-Web/backend/.env.example` to `Biodiversity-Web/backend/.env`. Set DB credentials, `APP_ORIGIN=http://localhost:5173` and `COOKIE_SECURE=false` for local HTTP. Environment variables override this file. Keep `.env` private.
 3. Provision an officer with `php Biodiversity-Web/backend/bin/create-user.php officer@example.com "Test Officer" conservation_officer`. Enter a unique 12–72 byte password on standard input. Public registration provisions only General Users.
 4. From the repository root start PHP:
 
