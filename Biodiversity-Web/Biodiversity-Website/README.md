@@ -1,5 +1,7 @@
 # Biodiversity-Website
 
+For the complete application setup (database, encryption key, accounts, PHP backend and Vue frontend), follow the [Web Setup Guide](../SETUP.md). Running the frontend alone does not configure the backend.
+
 This template should help get you started developing with Vue 3 in Vite.
 
 ## Recommended IDE Setup

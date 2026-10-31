@@ -1,5 +1,7 @@
 # Local Sensitive Data Protection and Operations Guide
 
+For a complete first-time installation, start with the [Web Setup Guide](../SETUP.md). This document provides detailed encryption, migration and recovery instructions.
+
 This implementation provides application-level field encryption. It does not mean that the entire MySQL database or disk is encrypted, and it does not replace HTTPS. The current environment uses a local database and has not been deployed.
 
 ## Protection Scope

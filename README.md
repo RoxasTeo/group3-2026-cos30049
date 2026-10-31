@@ -11,6 +11,8 @@ Includes species/photo management, knowledge search, observation review, distrib
 
 ## Run locally
 
+**Start here:** [Complete Web Setup Guide](Biodiversity-Web/SETUP.md) covers prerequisites, a fresh database, private encryption keys, initial accounts, both development servers, troubleshooting and existing-database upgrades.
+
 Prerequisites: Node matching the frontend engines requirement, PHP 8.1+ with PDO MySQL and image support, and MySQL/MariaDB using InnoDB.
 
 1. Create a database. For a fresh installation import `Biodiversity-Web/backend/schema.sql` into it. For existing installations back up first and apply only missing migrations 001–005; inspect existing indexes before applying 002/003. Do not import test fixtures into a real database.
