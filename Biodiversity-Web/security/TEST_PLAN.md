@@ -1,35 +1,35 @@
-# 本地安全测试计划
+# Local Security Test Plan
 
-目标：验证敏感资料在数据库中是可认证密文，未授权请求无法取用，迁移可恢复，并且现有 Web 功能不受影响。本计划属于本地 SSDLC 的安全设计、验证、修复与复测证据，不是正式渗透测试或合规认证。
+Objective: verify that sensitive database fields use authenticated encryption, unauthorized requests cannot access them, migrations support recovery, and existing Web functionality remains operational. This plan provides local SSDLC evidence for security design, verification, remediation and reassessment. It is not a formal penetration test or compliance certification.
 
-## 范围、环境与威胁模型
+## Scope, Environment and Threat Model
 
-- 本地 main Web/PHP、隔离的 loopback `*_test` MySQL、真实接口和浏览器；只使用虚构资料。
-- 攻击／故障假设：未登录请求、普通用户越权、已停用账号、被降级的旧会话、恶意输入、数据库只读泄露、密文篡改／跨行交换、密钥缺失、迁移中断和错误恢复。
-- 不涵盖真实硬件、云端、生产 TLS 证书、整机入侵、DDoS、完整第三方 DAST 或法律合规判定。
-- 浏览器测试以 Playwright 驱动实际页面；刷新故障测试使用模拟响应和加速时钟。设备链路以合成 JSON 上报模拟传感器，后端和数据库是真实运行的。
+- Local main Web/PHP code, an isolated loopback `*_test` MySQL database, real APIs and browsers; fictional data only.
+- Attack and failure assumptions: anonymous requests, privilege escalation by ordinary users, disabled accounts, downgraded accounts with old sessions, malicious input, read-only database disclosure, ciphertext tampering or row swapping, missing keys, interrupted migration and incorrect recovery.
+- Excludes physical hardware, cloud infrastructure, production TLS certificates, full host compromise, DDoS, comprehensive third-party DAST and legal compliance determinations.
+- Browser tests drive actual pages with Playwright. Refresh failure tests use simulated responses and accelerated clocks. Synthetic JSON submissions simulate sensors; the backend and database run normally.
 
-## 测试矩阵
+## Test Matrix
 
-| 编号 | 测试 | 通过标准 |
+| ID | Test | Acceptance Criteria |
 | --- | --- | --- |
-| SEC-01 | 注册、登录、错误密码、限流、退出 | 正确流程可用；普通注册不获特权；连续失败返回 429；退出后 401 |
-| SEC-02 | 角色、账号停用、角色变化、对象归属 | 后端拒绝越权，旧会话不能绕过当前账号状态 |
-| SEC-03 | CSRF、Origin、内容类型及输入 | 非法请求拒绝；没有不完整写入 |
-| SEC-04 | SQL 搜索、图片类型及文本输出 | 查询参数化；恶意 SVG／伪图像拒绝；文本不作为可执行 HTML |
-| SEC-05 | 数据库字段机密性 | 姓名、邮箱、观察和审核文本均为认证密文；没有明文回退 |
-| SEC-06 | 加密完整性 | 修改标签、截断、错误密钥、跨用户／字段移植被拒绝 |
-| SEC-07 | 密钥和配置访问 | 密钥在 Git/公开目录外；配置不被 HTTP 读取；不输出密钥／资料；运行账号无 DDL 权限 |
-| SEC-08 | 密钥故障与资料损坏 API | 仅返回通用错误；被篡改资料不能建立登录；格式有效但不匹配的密钥也不能注册新用户 |
-| SEC-09 | 旧数据迁移及恢复 | 先有可验证加密快照；ID／密码哈希／关联保持；恢复不覆盖新行；重复迁移不产生双重加密 |
-| SEC-10 | 业务回归 | 登录、用户管理、审核、报告、地图、历史分析、警报和设备追踪保持可用 |
-| SEC-11 | 依赖检查 | 记录 npm audit 结果；零已知依赖漏洞不被解释为无漏洞 |
+| SEC-01 | Registration, login, incorrect passwords, throttling and logout | Valid flows work; public registration grants no privileged role; repeated failures return 429; requests after logout return 401 |
+| SEC-02 | Roles, disabled accounts, role changes and object ownership | Backend rejects unauthorized access; old sessions cannot bypass current account status |
+| SEC-03 | CSRF, Origin, content types and input | Invalid requests are rejected without partial writes |
+| SEC-04 | SQL search, image types and text output | Queries are parameterized; malicious SVG/fake images are rejected; text is not rendered as executable HTML |
+| SEC-05 | Database field confidentiality | Names, emails, observation text and review text use authenticated ciphertext with no plaintext fallback |
+| SEC-06 | Cryptographic integrity | Modified tags, truncation, incorrect keys and ciphertext moved across users/fields are rejected |
+| SEC-07 | Key and configuration access | Keys remain outside Git/public directories; configuration is inaccessible over HTTP; keys/data are not printed; runtime account has no DDL privileges |
+| SEC-08 | Key failure and corrupted-data APIs | Only generic errors are returned; tampered profiles cannot establish login; a validly formatted but mismatched key cannot register new users |
+| SEC-09 | Legacy migration and recovery | A verified encrypted snapshot is created first; IDs/password hashes/relationships survive; recovery preserves newer rows; repeated migration does not double-encrypt |
+| SEC-10 | Business regression | Login, user management, review, reports, maps, historical analysis, alerts and device tracking remain operational |
+| SEC-11 | Dependency checks | Record npm audit results; zero known dependency vulnerabilities must not be interpreted as proof of no vulnerabilities |
 
-## 工具与复跑
+## Tools and Reproduction
 
-运行前设置 `REVIEW_TEST_FIXTURES=1`、loopback `*_test` 数据库操作员变量和 `REVIEW_TEST_PHP`。标准接口测试还需 `REVIEW_TEST_URL=http://localhost:<test-port>`；共享设备测试需要显式配置专用设备测试 key。不要使用生产数据库或真实密钥测试故障。
+Before running tests, set `REVIEW_TEST_FIXTURES=1`, operator connection variables for a loopback `*_test` database, and `REVIEW_TEST_PHP`. Standard API tests also require `REVIEW_TEST_URL=http://localhost:<test-port>`. Shared-device tests require an explicitly configured dedicated device test key. Never use production databases or real keys for fault injection.
 
-从仓库根目录：
+From the repository root:
 
 ```sh
 php Biodiversity-Web/backend/tests/data_protection_test.php
@@ -40,10 +40,10 @@ python -m unittest discover -s Biodiversity-Web/backend/tests -p '*integration.p
 python Biodiversity-Web/backend/tests/web_acceptance.py
 ```
 
-迁移测试仅创建并删除它自己拥有的随机临时库；需要操作员建库权限。API 缺失密钥测试需要额外 `REVIEW_TEST_FAILURE_URL`，指向故意配置不存在密钥文件的**独立**服务；不能破坏正常服务的配置。
+The migration test creates and deletes only its own randomly named temporary database and requires operator database-creation privileges. The missing-key API test also requires `REVIEW_TEST_FAILURE_URL`, pointing to a **separate** service deliberately configured with a nonexistent key file. Do not damage the normal service configuration.
 
-运行 `runtime_permissions.php` 时不要给进程注入 root 凭据，它应读取实际 Web 私有配置，检查运行账号权限。Crypto 测试使用仓库外私有目录中的临时测试密钥，结束后清除。
+When running `runtime_permissions.php`, do not inject root credentials. It should read the actual private Web configuration and inspect runtime-account privileges. Cryptographic tests use temporary test keys in a private directory outside the repository and clean them up afterwards.
 
-前端目录执行 `npm run build`、`node --test tests/*.test.mjs`、`npm audit --omit=dev --json`。浏览器脚本使用 Playwright 和 `REVIEW_TEST_WEB_URL`；具体流程见 `TEST_RESULTS.md`、`../TEST_RESULTS.md` 及各功能文档。
+In the frontend directory, run `npm run build`, `node --test tests/*.test.mjs` and `npm audit --omit=dev --json`. Browser scripts use Playwright and `REVIEW_TEST_WEB_URL`. See `TEST_RESULTS.md`, `../TEST_RESULTS.md` and individual feature documents for specific flows.
 
-退出条件：所有指定测试通过，故障注入已清理，未暴露密钥或明文资料，维护模式已关闭；任何失败须记录原因、修复及同场景复测结果。不得把跳过的设备专用测试记为执行通过。
+Exit criteria: all designated tests pass, injected faults are cleaned up, no keys or plaintext data are exposed, and maintenance mode is disabled. Record each failure, its cause, remediation and reassessment of the same scenario. Skipped device-specific tests must not be reported as executed passes.

@@ -1,39 +1,39 @@
-# 本地敏感资料保护与操作说明
+# Local Sensitive Data Protection and Operations Guide
 
-本实现是应用层字段加密，不是“整台 MySQL／磁盘已加密”，也不替代 HTTPS。现阶段仍使用本地数据库；未部署或推送。
+This implementation provides application-level field encryption. It does not mean that the entire MySQL database or disk is encrypted, and it does not replace HTTPS. The current environment uses a local database and has not been deployed.
 
-## 保护范围
+## Protection Scope
 
-| 数据 | 保存方式 |
+| Data | Storage |
 | --- | --- |
-| 用户姓名、邮箱 | AES-256-GCM 密文 |
-| 观察记录 field_notes、habitat | AES-256-GCM 密文 |
-| 审核意见 notes | AES-256-GCM 密文 |
-| 登录邮箱查询 | 使用独立派生密钥的 HMAC-SHA-256 索引；不按明文或密文邮箱搜索 |
-| 密码 | 继续使用 bcrypt 哈希，不能解密回原密码 |
-| 设备上传密钥 | 保留随机密钥的哈希；创建／替换时仅显示一次 |
+| User names and email addresses | AES-256-GCM ciphertext |
+| Observation `field_notes` and `habitat` | AES-256-GCM ciphertext |
+| Review `notes` | AES-256-GCM ciphertext |
+| Login email lookup | HMAC-SHA-256 index using a separately derived key; searches do not use plaintext or encrypted email values directly |
+| Passwords | Existing bcrypt hashes; passwords cannot be decrypted |
+| Device upload keys | Hashes of random keys; the original key is shown only when created or replaced |
 
-物种知识库公开资料、分类、状态、审核决定／清单、植物照片、GPS、传感器数值、ID 和时间没有在此轮全部加密。照片可能含有元数据，应只上传项目允许的植物照片。系统没有 scope 泛用描述中的“performance records”独立模块，因此没有声称保护不存在的数据。需要额外保护哪些地理或照片资料，应单独确定。
+Public species knowledge, taxonomy, statuses, review decisions/checklists, plant photographs, GPS coordinates, sensor values, IDs and timestamps are not all encrypted in this implementation. Photographs may contain metadata; upload only plant photographs permitted by the project. The system has no separate module for the generic scope term "performance records", so protection of such a module is not claimed. Additional protection requirements for location or photograph data should be agreed separately.
 
-每次加密使用新的 12 字节随机 IV 和 16 字节认证标签。字段与所属用户／观察／审核身份作为认证数据，阻止把另一行或另一字段的密文直接移植。密文格式为 `enc:v1:<base64>`；Base64 只是容器，机密性来自 AES-GCM。密钥通过 HKDF 分别派生加密用途与邮箱查询用途。数据库还保存经过认证加密的密钥校验标记，登录和敏感写入前会验证密钥匹配；误配另一把格式有效的密钥也不会悄悄创建混合密文。邮箱索引会暴露同值匹配关系，这是维持唯一邮箱和登录查询的必要取舍。
+Each encryption operation uses a fresh 12-byte random IV and a 16-byte authentication tag. The field and its owning user, observation or review identity are included as authenticated data to prevent moving ciphertext between rows or fields. The format is `enc:v1:<base64>`; Base64 is only a container, while AES-GCM provides confidentiality. HKDF derives separate keys for encryption and email lookup. The database also stores an authenticated encrypted key-check marker. Login and sensitive writes verify the key before proceeding, so even a correctly formatted but mismatched key cannot silently create mixed-key records. The email index reveals equality between matching values, a trade-off required for unique email addresses and login lookup.
 
-实现依据：[PHP OpenSSL authenticated encryption](https://www.php.net/openssl-encrypt)、[PHP AEAD specification](https://wiki.php.net/rfc/openssl_aead)。没有自创分组加密算法。
+Implementation references: [PHP OpenSSL authenticated encryption](https://www.php.net/openssl-encrypt) and [PHP AEAD specification](https://wiki.php.net/rfc/openssl_aead). No custom block cipher is used.
 
-## 密钥和本地配置
+## Keys and Local Configuration
 
-1. 在**所有 Git 工作区以外**建立私有目录。Windows ACL 只授权运行账号和 SYSTEM；POSIX 目录建议 0700，文件 0600。生成器不会覆盖已有文件，也不会输出密钥内容。
-2. 运行 `php Biodiversity-Web/backend/bin/generate-data-key.php <private-key-file>`。
-3. 在被 Git 忽略的 `Biodiversity-Web/backend/.env` 配置 `DATA_ENCRYPTION_KEY_FILE` 为文件绝对路径；`DATA_ENCRYPTION_BACKUP_DIR` 指向同样不在仓库内的私有备份目录。不要把密钥、真实凭据或加密备份提交到 Git。
-4. 另行把密钥备份到独立安全位置。**丢失密钥会使现有密文和加密备份无法恢复。** 不要直接替换正在使用的密钥文件；当前版本没有在线密钥轮换服务，轮换需要带旧密钥的受控解密／重加密与索引重建方案。
+1. Create a private directory **outside all Git working trees**. On Windows, restrict the ACL to the runtime account and SYSTEM. On POSIX, recommended permissions are 0700 for directories and 0600 for files. The generator neither overwrites existing files nor displays key contents.
+2. Run `php Biodiversity-Web/backend/bin/generate-data-key.php <private-key-file>`.
+3. In the Git-ignored `Biodiversity-Web/backend/.env`, set `DATA_ENCRYPTION_KEY_FILE` to the absolute key-file path and `DATA_ENCRYPTION_BACKUP_DIR` to a private backup directory outside the repository. Never commit keys, real credentials or encrypted backups to Git.
+4. Keep a separate secure backup of the key. **Losing the key makes existing ciphertext and encrypted backups unrecoverable.** Do not replace an active key file directly. This version has no online key-rotation service; rotation requires a controlled process using the old key to decrypt, re-encrypt and rebuild lookup indexes.
 
-本地预览已配置单独的数据库运行账号，只授予当前本地库的 SELECT/INSERT/UPDATE/DELETE。建表、迁移、触发器故障注入测试使用独立的操作员权限。运行账号不能执行建表、删库或修改权限操作。真实数据库密码只在私有配置内，不在文档或测试输出中。
+The local preview uses a dedicated database runtime account with only SELECT/INSERT/UPDATE/DELETE on the local database. Schema creation, migrations and trigger-based fault injection use separate operator privileges. The runtime account cannot create tables, drop databases or change grants. Real database passwords remain in private configuration and are excluded from documentation and test output.
 
-## 旧数据库迁移
+## Migrating an Existing Database
 
-应用和字段格式必须一起升级。不要仅改表结构或仅切换代码；旧服务按明文邮箱查询将失效。API 响应中的姓名、邮箱、观察和审核文本保持原格式，由通过认证／权限检查的后端解密。
+Application code and field formats must be upgraded together. Changing only the schema or only the code is insufficient; older services that query plaintext email addresses will no longer work. API response formats for names, emails, observations and review text remain unchanged; the backend decrypts them after authentication and authorization.
 
-1. 备份完整数据库，停止所有写入服务。在实际运行配置中设 `DATA_ENCRYPTION_MAINTENANCE=true`；Web API 会返回维护提示。仅在一个终端设置环境变量并不等于其他服务也已停写。
-2. 确认密钥和备份目录权限，运行：
+1. Back up the complete database and stop all writers. Set `DATA_ENCRYPTION_MAINTENANCE=true` in the actual runtime configuration; Web APIs will return a maintenance response. Setting an environment variable in one terminal does not stop other services from writing.
+2. Check key and backup directory permissions, then run:
 
    ```sh
    php Biodiversity-Web/backend/bin/encrypt-sensitive-data.php --check
@@ -41,29 +41,29 @@
    php Biodiversity-Web/backend/bin/encrypt-sensitive-data.php --check
    ```
 
-   `--check` 在全部已加密且索引结构正确时返回 0；发现待迁移内容返回 2。工具不显示资料内容。
-3. `--apply` 先生成并在内存中验证**加密的敏感字段快照**，然后将用户字段扩展为 TEXT、建立唯一邮箱查询索引，再在事务中更新敏感字段。用户 ID、密码哈希、角色、审核决定及外键关联保持不变。它不是完整数据库备份。
-4. DDL 在 MySQL 中不能与全部字段更新组成同一个可回滚事务；若结构阶段失败，保持维护模式、检查错误后重试。已加密字段会先认证解密，避免重复套加密；错误密钥或损坏密文不会被当作明文继续处理。
-5. 迁移会一次性清空旧登录尝试计数，之后使用带密钥的邮箱索引记账。请在维护窗口执行，不能把反复迁移当成解除登录限流的方法。
-6. 验证登录、权限和业务操作，通过后设 `DATA_ENCRYPTION_MAINTENANCE=false` 并启动服务。
+   `--check` returns 0 when encryption and index structure are correct, or 2 when migration is pending. The tool does not display data contents.
+3. `--apply` first creates and verifies an **encrypted snapshot of sensitive fields** in memory. It then expands user fields to TEXT, creates the unique email lookup index and updates sensitive fields within a transaction. User IDs, password hashes, roles, review decisions and foreign-key relationships are preserved. This snapshot is not a complete database backup.
+4. MySQL DDL and all field updates cannot form one fully rollback-capable transaction. If the schema stage fails, remain in maintenance mode, investigate and retry. Existing ciphertext is authenticated and decrypted before processing to avoid double encryption. Incorrect keys or damaged ciphertext are never treated as plaintext.
+5. Migration clears legacy login-attempt counters once; subsequent attempts use the keyed email index. Run it during maintenance, and never repeatedly migrate to bypass login throttling.
+6. Verify login, permissions and business operations, then set `DATA_ENCRYPTION_MAINTENANCE=false` and start services.
 
-新库直接使用更新后的 `schema.sql`，配置密钥后先通过 CLI 创建第一个账号；CLI 只会在空用户表中初始化密钥校验标记，公开注册接口不能自行初始化。测试 fixture 工具也使用同一加密写入路径，不会偷偷插入明文用户。
+For a new database, use the updated `schema.sql`. After configuring the key, create the first account through the CLI. The CLI initializes the key-check marker only when the users table is empty; public registration cannot initialize it. Test fixture tools use the same encrypted write path rather than inserting plaintext users.
 
-## 敏感字段恢复
+## Restoring Sensitive Fields
 
-保留与备份对应的密钥，在停写维护模式下运行：
+Keep the key that matches the backup. With all writers stopped and maintenance mode enabled, run:
 
 ```sh
 php Biodiversity-Web/backend/bin/restore-sensitive-data.php <private-encrypted-backup> --apply
 ```
 
-工具验证备份属于当前数据库、旧行仍存在且观察／审核身份没有改变，然后将敏感字段**重新保存为密文**。不会恢复整库、覆盖密码哈希／决定，或删除备份后创建的新行。使用前仍应保留当前完整数据库备份，避免无意用旧资料覆盖正确的新资料。
+The tool verifies that the backup belongs to the current database, original rows still exist, and observation/review identities have not changed. It then saves the sensitive fields **as ciphertext again**. It does not restore the entire database, overwrite password hashes or decisions, or delete rows created after the backup. Keep a current full database backup before restoring to avoid unintentionally replacing correct data with older values.
 
-## 保护边界
+## Protection Boundaries
 
-- 密钥已放在仓库和临时预览目录之外的持久私有目录；实际路径由本机 `.env` 引用，不随仓库分享。
-- 加密不代表所有数据库列均有防篡改保护；角色、状态和其他未加密字段仍依赖数据库完整性及业务授权。
-- 密钥缺失、错误、密文篡改会拒绝读取，不回退到明文。Web 返回通用错误；日志关闭异常参数输出，避免把姓名、邮箱或密码放入堆栈。
-- 后端仍必须解密并向获授权用户显示资料；拥有主机权限且能读取密钥的人不在本字段加密的防护边界内。
-- 旧明文可能仍存在于历史数据库文件、undo/redo、旧备份或系统快照。本次不声称安全擦除了这些物理副本。完整磁盘／数据库／备份保护和正式 HTTPS 仍需单独验收。
-- scope 的 trainers/guides 与当前 Admin/Conservation Officer/Botanist/General User 命名不同；当前权限按植物项目角色执行，角色含义对应关系应由团队确认，不能据此直接声称法规合规。
+- Keys are stored in a persistent private directory outside the repository and temporary preview directory. The local `.env` references the actual path; keys are not distributed with the repository.
+- Encryption does not provide tamper protection for every database column. Roles, statuses and other unencrypted fields still depend on database integrity and business authorization.
+- Missing or incorrect keys and modified ciphertext cause reads to fail, without plaintext fallback. Web responses contain generic errors. Exception argument output is disabled to avoid including names, emails or passwords in stack traces.
+- The backend must still decrypt data for authorized users. Attackers with host access and the ability to read the key are outside this field-encryption protection boundary.
+- Historical database files, undo/redo logs, old backups and system snapshots may retain earlier plaintext. Secure erasure of these physical copies is not claimed. Full disk/database/backup protection and production HTTPS require separate acceptance checks.
+- The scope's trainers/guides terminology differs from the current Admin/Conservation Officer/Botanist/General User roles. Permissions follow the botanical project roles; the team should confirm the correspondence. This alone does not establish regulatory compliance.
