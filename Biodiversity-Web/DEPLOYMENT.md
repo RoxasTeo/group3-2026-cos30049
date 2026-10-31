@@ -1,4 +1,4 @@
-> Current status (2026-11-01): application-level sensitive-field encryption is deferred until Mobile integration. Do not apply migration 005 or configure a new field-encryption key for a fresh installation. Previously encrypted databases require the [rollback guide](security/DATA_PROTECTION.md).
+> Current status (2026-11-01): application-level sensitive-field encryption is deferred until Mobile integration. Do not apply migration 005 or configure a new field-encryption key for a fresh installation. Previously encrypted databases require the [rollback guide](SETUP.md#appendix-previously-encrypted-databases).
 
 # Web deployment and data protection
 
@@ -15,7 +15,7 @@ This workspace is locally verified, not deployed or certified for production. Ha
 
 ## Encryption and operational evidence still required
 
-Enable encryption at rest for the managed database/disk, logs containing personal data and backups; keep keys in the provider's managed key service with restricted access and rotation. Record the provider settings and a successful backup/restore check. These require the team's actual hosting account and cannot be established by local application code. Application-level encryption of user profiles and observation/review text is deferred until joint Mobile integration. Fresh installations need no field-encryption key. Previously encrypted databases require the operator rollback described in `security/DATA_PROTECTION.md`.
+Enable encryption at rest for the managed database/disk, logs containing personal data and backups; keep keys in the provider's managed key service with restricted access and rotation. Record the provider settings and a successful backup/restore check. These require the team's actual hosting account and cannot be established by local application code. Application-level encryption of user profiles and observation/review text is deferred until joint Mobile integration. Fresh installations need no field-encryption key. Previously encrypted databases require the operator rollback described in the appendix of `SETUP.md`.
 
 Passwords use bcrypt hashing. Sessions use HttpOnly, SameSite cookies with Secure required for production. Writes require CSRF tokens and roles are reloaded from the account on every protected non-IoT API request. General users can read the knowledge repository; only officers/admins manage species and review/export records. Botanists use field submission APIs and do not gain Web management access.
 
