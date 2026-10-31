@@ -1,3 +1,4 @@
+import { DatabaseSync } from 'node:sqlite';
 import { hashPassword } from './passwords.js';
 
 // Fictional development accounts only. Never load this repository in production.
@@ -8,7 +9,7 @@ export const demoAccounts = [
 ];
 export const demoPassword = 'NiahDemo2026!';
 
-export async function createDemoRepository() {
+export async function createDemoRepository(databasePath) {
   const password_hash = await hashPassword(demoPassword);
   const users = demoAccounts.map(user => ({ ...user, password_hash }));
   const records = new Map();
@@ -29,8 +30,18 @@ export async function createDemoRepository() {
       photos: [], status: 'Synced', sample: true, createdAt: date, updatedAt: date,
     } });
   });
+  const db = databasePath ? new DatabaseSync(databasePath) : null;
+  if (db) {
+    db.exec('CREATE TABLE IF NOT EXISTS records (id TEXT PRIMARY KEY, owner INTEGER NOT NULL, payload TEXT NOT NULL)');
+    const seed = db.prepare('INSERT OR IGNORE INTO records (id, owner, payload) VALUES (?, ?, ?)');
+    for (const [id, entry] of records) seed.run(id, entry.owner, JSON.stringify(entry.record));
+    records.clear();
+    for (const row of db.prepare('SELECT * FROM records').all()) records.set(row.id, { owner: row.owner, record: JSON.parse(row.payload) });
+  }
   const accessible = (entry, user) => entry && (entry.owner === user.id || user.role === 'conservation-officer');
   return {
+    storage: db ? 'sqlite (persistent demo)' : 'temporary memory',
+    close() { db?.close(); },
     async ready() {},
     async userByEmail(email) { return structuredClone(users.find(user => user.email === email)); },
     async userById(id) { return structuredClone(users.find(user => String(user.id) === String(id))); },
@@ -47,6 +58,7 @@ export async function createDemoRepository() {
       if (records.has(record.plantId)) throw Object.assign(new Error('Duplicate demo plant ID'), { code: 'ER_DUP_ENTRY' });
       const now = new Date().toISOString();
       const saved = { ...structuredClone(record), status: 'Synced', sample: true, createdAt: now, updatedAt: now };
+      db?.prepare('INSERT INTO records (id, owner, payload) VALUES (?, ?, ?)').run(record.plantId, user.id, JSON.stringify(saved));
       records.set(record.plantId, { owner: user.id, record: saved });
       return structuredClone(saved);
     },

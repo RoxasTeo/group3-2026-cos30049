@@ -103,7 +103,7 @@ export default function LoginScreen() {
     try {
       const nextSession = await loginRequest(apiBaseUrl(), email, password);
       setPassword('');
-      acceptSession(nextSession);
+      await acceptSession(nextSession);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Sign-in failed. Please try again.');
     } finally { inFlight.current = false; setBusy(false); }

@@ -1,3 +1,5 @@
+import { speciesReference } from '../data/speciesReference';
+import { preservePhotos } from '../services/photoStorage';
 import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
@@ -8,12 +10,13 @@ import CaptureFields from '../components/records/CaptureFields';
 type TextKey = Exclude<keyof PlantRecordInput, 'photos' | 'location'>;
 
 export default function PlantRecordFormScreen() {
-  const params = useLocalSearchParams<{ plantId?: string; edit?: string }>();
+  const params = useLocalSearchParams<{ plantId?: string; edit?: string; reference?: string }>();
+  const reference = speciesReference.find(entry => entry.id === params.reference);
   const navigation = useNavigation();
   const editing = params.edit === 'true';
   const [id] = useState(() => (params.plantId || createTemporaryPlantId()).trim().toUpperCase());
   const existing = getPlantRecord(id);
-  const [form, setForm] = useState<PlantRecordInput>(() => ({ plantId: id, commonName: existing?.commonName === 'Unidentified plant' ? '' : existing?.commonName ?? '', scientificName: existing?.scientificName ?? '', family: existing?.family ?? '', conservationStatus: existing?.conservationStatus ?? 'Not assessed', description: existing?.description ?? '', habitatNotes: existing?.habitatNotes ?? '' }));
+  const [form, setForm] = useState<PlantRecordInput>(() => ({ plantId: id, commonName: existing?.commonName === 'Unidentified plant' ? '' : existing?.commonName ?? reference?.commonName ?? '', scientificName: existing?.scientificName ?? reference?.scientificName ?? '', family: existing?.family ?? reference?.family ?? '', conservationStatus: existing?.conservationStatus ?? 'Not assessed', description: existing?.description ?? '', habitatNotes: existing?.habitatNotes ?? '', heightMetres: existing?.heightMetres ?? '', morphology: existing?.morphology ?? '' }));
   const [photos, setPhotos] = useState(existing?.photos ?? []), [location, setLocation] = useState(existing?.location ?? null);
   const [capturing, setCapturing] = useState(false);
   const [initial] = useState(() => JSON.stringify({ form, photos, location }));
@@ -34,14 +37,14 @@ export default function PlantRecordFormScreen() {
   const locked = (editing && (!existing || existing.status !== 'Draft')) || (!editing && !!existing);
   function set(key: TextKey, value: string) { setForm(previous => ({ ...previous, [key]: value })); setError(''); }
   function leave() { router.replace(editing ? { pathname: '/plant/[plantId]', params: { plantId: id } } : '/navigation/botanist/records'); }
-  function save(ready: boolean) {
+  async function save(ready: boolean) {
     if (saving || finishedId || capturing) return;
     setSaving(true); setError('');
-    try { const record = savePlantRecord({ ...form, photos, location }, ready, editing ? 'edit' : 'create'); setFinishedId(record.plantId); }
+    try { const record = savePlantRecord({ ...form, photos: await preservePhotos(photos), location }, ready, editing ? 'edit' : 'create'); setFinishedId(record.plantId); }
     catch (e) { setError(e instanceof Error ? e.message : 'Could not save this draft.'); setSaving(false); }
   }
   function field(key: TextKey, label: string, placeholder: string, multiline = false) {
-    return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput accessibilityLabel={label} value={form[key]} onChangeText={value => set(key, value)} placeholder={placeholder} placeholderTextColor={colors.muted} multiline={multiline} maxLength={multiline ? 2000 : 140} autoCapitalize={key === 'scientificName' ? 'none' : 'sentences'} style={[styles.input, multiline && styles.multiline]} /></View>;
+    return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput accessibilityLabel={label} value={form[key]} keyboardType={key === 'heightMetres' ? 'decimal-pad' : 'default'} onChangeText={value => set(key, value)} placeholder={placeholder} placeholderTextColor={colors.muted} multiline={multiline} maxLength={multiline ? 2000 : 140} autoCapitalize={key === 'scientificName' ? 'none' : 'sentences'} style={[styles.input, multiline && styles.multiline]} /></View>;
   }
   return <RecordFrame onTab={destination => router.replace(destination)}><KeyboardAvoidingView style={ui.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><RecordScroll>
     <RecordBack label={editing ? 'record details' : 'Records'} onPress={leave} />
@@ -51,6 +54,8 @@ export default function PlantRecordFormScreen() {
       {field('commonName', 'Common name', 'Leave blank if unknown')}
       {field('scientificName', 'Scientific name', 'Optional until identification')}
       {field('family', 'Family', 'Optional')}
+      {field('heightMetres', 'Height (metres)', 'Optional, e.g. 2.5')}
+      {field('morphology', 'Morphological characteristics', 'Leaf shape, bark, flowers, fruit and growth form…', true)}
       {field('conservationStatus', 'Conservation status', 'Not assessed')}
       {field('description', 'Field observations', 'Describe leaves, bark, height or habitat…', true)}
       {field('habitatNotes', 'Habitat notes', 'Describe where you found the plant…', true)}
@@ -61,7 +66,7 @@ export default function PlantRecordFormScreen() {
       {!!error && <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={ui.error}>{error}</Text>}
       <RecordButton label={saving ? 'Saving…' : 'Save draft'} primary disabled={saving || capturing} onPress={() => save(false)} />
       <RecordButton label="Mark ready to sync" disabled={saving || capturing} onPress={() => save(true)} />
-      <Text style={ui.caption}>Session-only prototype: changes are lost when the app restarts. SQLite and server sync will be integrated separately.</Text>
+      <Text style={ui.caption}>Saved records and photographs remain on this device. Mark ready, then use Sync when you have a connection.</Text>
     </>}
     <ConfirmRecordAction visible={discardVisible} title="Discard unsaved changes?" description="Your last saved draft will be kept. Changes made since then will be discarded." confirmLabel="Discard changes" onCancel={() => { setDiscardVisible(false); pendingLeave.current = null; }} onConfirm={() => { setDiscardVisible(false); const action = pendingLeave.current; pendingLeave.current = null; action?.(); }} />
   </RecordScroll></KeyboardAvoidingView></RecordFrame>;

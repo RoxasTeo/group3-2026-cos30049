@@ -1,3 +1,6 @@
+import { useSession } from '../auth/SessionProvider';
+import { apiBaseUrl } from '../auth/apiConfig';
+import { syncRecords } from '../services/syncRecords';
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -10,6 +13,15 @@ type SyncFilter = typeof filters[number];
 
 export default function SyncScreen() {
   const records = usePlantRecords();
+  const { session } = useSession();
+  const [busy, setBusy] = useState(false), [message, setMessage] = useState('Ready to upload when connected.');
+  async function upload() {
+    if (busy || !session) return;
+    setBusy(true); setMessage('Uploading records and photographs…');
+    try { setMessage(await syncRecords(apiBaseUrl(), session.token)); }
+    catch (e) { setMessage(e instanceof Error ? e.message : 'Could not save the sync result. Please retry.'); }
+    finally { setBusy(false); }
+  }
   const [filter, setFilter] = useState<SyncFilter>('Queue');
   const pending = records.filter(record => record.status === 'Pending sync').length;
   const failed = records.filter(record => record.status === 'Failed').length;
@@ -30,10 +42,10 @@ export default function SyncScreen() {
       <View style={s.connectionCard}>
         <View style={s.connectionHeading}>
           <View style={s.icon}><RecordIcon name="clock" size={23} color={colors.forest} /></View>
-          <View style={s.flex}><Text style={s.sectionTitle}>Cloud sync unavailable</Text><Text style={s.caption}>Service not connected yet</Text></View>
+          <View style={s.flex}><Text style={s.sectionTitle}>Central database sync</Text><Text style={s.caption}>Offline collection · Upload when connected</Text></View>
         </View>
-        <Text style={s.description}>You can review the queue here. Uploading and retrying will be available when cloud sync is connected.</Text>
-        <View style={s.lastSync}><Text style={s.caption}>Last successful sync</Text><Text style={s.lastValue}>Not available</Text></View>
+        <Text style={s.description}>Upload ready records with their photos and GPS. Failed transfers stay on this device and can be retried safely.</Text>
+        <View style={s.lastSync}><Text style={s.caption}>Upload status</Text><Text style={s.lastValue} accessibilityLiveRegion="polite">{message}</Text></View>
       </View>
 
       <View style={s.stats}>
@@ -41,10 +53,10 @@ export default function SyncScreen() {
           <View key={item.label} style={s.stat}><Text style={[s.count, item.label === 'Failed' && failed > 0 && s.errorText]}>{item.count.toString().padStart(2, '0')}</Text><Text style={s.statLabel}>{item.label}</Text></View>
         ))}
       </View>
-      <Pressable accessibilityRole="button" accessibilityState={{ disabled: true }} disabled style={s.disabledButton}>
-        <Text style={s.buttonText}>Sync all records</Text>
+      <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy || pending + failed === 0, busy }} disabled={busy || pending + failed === 0} onPress={() => { void upload(); }} style={[s.disabledButton, !busy && pending + failed > 0 && { backgroundColor: colors.forest }]}>
+        <Text style={[s.buttonText, !busy && pending + failed > 0 && { color: colors.paper }]}>{busy ? 'Syncing…' : failed ? 'Sync all / retry failed' : 'Sync all records'}</Text>
       </Pressable>
-      <Text style={s.buttonHint}>Uploads are unavailable in this preview.</Text>
+      <Text style={s.buttonHint}>Drafts are excluded. A record is marked Synced only after server confirmation.</Text>
 
       <Text accessibilityRole="header" style={[s.sectionTitle, s.queueHeading]}>Sync activity</Text>
       <View style={s.filters}>
@@ -57,7 +69,7 @@ export default function SyncScreen() {
               <View style={s.recordHeading}><Text style={s.recordName}>{record.commonName || 'Unidentified plant'}</Text><Text style={s.arrow}>→</Text></View>
               <Text style={s.recordMeta}>{record.plantId}{record.sample ? ' · SAMPLE' : ''}</Text>
               <View style={s.recordStatus}><RecordBadge status={record.status} /><Text style={s.recordMeta}>Updated {recordDate(record.updatedAt)}</Text></View>
-              {record.status === 'Failed' && <Text style={s.failure}>{record.syncError || 'This record needs another upload attempt.'} Retry is unavailable until cloud sync is connected.</Text>}
+              {record.status === 'Failed' && <Text style={s.failure}>{record.syncError || 'This record needs another upload attempt.'} Use Sync all / retry failed above.</Text>}
             </Pressable>
           ))}
       </View>
@@ -65,7 +77,7 @@ export default function SyncScreen() {
       <Pressable accessibilityRole="button" onPress={openRecords} style={({ pressed }) => [s.draftsCard, pressed && s.pressed]}>
         <RecordIcon name="edit" color={colors.forest} size={21} /><View style={s.flex}><Text style={s.sectionTitle}>{drafts} {drafts === 1 ? 'draft' : 'drafts'} outside the queue</Text><Text style={s.description}>Finish your observations and mark them ready in Records.</Text></View><Text style={s.arrow}>→</Text>
       </Pressable>
-      <View style={s.notice}><Text style={s.noticeLabel}>SESSION-ONLY PREVIEW</Text><Text style={s.noticeText}>Includes sample statuses, not confirmed uploads. Records reset when the app reloads. No data is uploaded from this page.</Text></View>
+      <View style={s.notice}><Text style={s.noticeLabel}>SAVED ON THIS DEVICE</Text><Text style={s.noticeText}>Records and photos remain on this device across restarts. Signing out hides them until the same account signs in again. Demo entries are fictional.</Text></View>
     </ScrollView>
   );
 }

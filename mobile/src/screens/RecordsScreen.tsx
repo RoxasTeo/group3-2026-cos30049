@@ -1,3 +1,5 @@
+import { useSession } from '../auth/SessionProvider';
+import RecordsConnectionNotice from '../components/records/RecordsConnectionNotice';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
@@ -7,25 +9,26 @@ import { colors, RecordBadge, RecordButton, RecordIcon, SampleNotice, recordDate
 
 export default function RecordsScreen() {
   const records = usePlantRecords();
+  const { recordsState, refreshRecords } = useSession();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<RecordFilter>('All');
   const filtered = useMemo(() => selectPlantRecords(records, search, filter), [records, search, filter]);
   function open(record: PlantRecord) { router.push({ pathname: '/plant/[plantId]', params: { plantId: record.plantId } }); }
   const newRecord = () => router.push('/plant/new');
-  return <View style={styles.root}><SampleNotice /><FlatList data={filtered} keyExtractor={r => r.plantId} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.list}
+  return <View style={styles.root}><SampleNotice /><FlatList refreshing={recordsState === 'loading'} onRefresh={() => { void refreshRecords(); }} data={filtered} keyExtractor={r => r.plantId} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.list}
     ListHeaderComponent={<View style={styles.header}>
       <Text style={ui.eyebrow}>YOUR FIELD COLLECTION</Text>
       <View style={styles.heading}><Text accessibilityRole="header" style={ui.title}>Records</Text><RecordButton label="+ New record" primary onPress={newRecord} /></View>
-      <Text style={ui.subtitle}>Every observation, kept in one place.</Text>
+      <Text style={ui.subtitle}>Your server records and unsent local drafts.</Text><RecordsConnectionNotice />
       <View style={styles.search}><RecordIcon name="search" /><TextInput accessibilityLabel="Search records by plant name or ID" placeholder="Search plant name or ID" placeholderTextColor={colors.muted} value={search} onChangeText={setSearch} autoCapitalize="none" autoCorrect={false} style={styles.input} />{search !== '' && <Pressable accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setSearch('')} style={styles.clear}><Text style={ui.muted}>×</Text></Pressable>}</View>
       <View accessibilityLabel="Filter records by status" style={styles.filters}>{(['All', ...recordStatuses] as const).map(status => <Pressable key={status} accessibilityRole="button" accessibilityState={{ selected: status === filter }} onPress={() => setFilter(status)} style={[styles.filter, status === filter && styles.filterActive]}><Text style={[styles.filterText, status === filter && styles.filterTextActive]}>{status === 'Draft' ? `Drafts · ${records.filter(r => r.status === 'Draft').length}` : status}</Text></Pressable>)}</View>
       <View style={styles.count}><Text accessibilityLiveRegion="polite" style={ui.caption}>{filtered.length} {filtered.length === 1 ? 'record' : 'records'}</Text><Text style={ui.caption}>Most recent first</Text></View>
     </View>}
-    ListEmptyComponent={<View style={styles.empty}><RecordIcon name="search" size={28} /><Text style={ui.sectionTitle}>{records.length ? 'No records found' : 'No records yet'}</Text><Text style={ui.paragraph}>{records.length ? 'Try a different plant name, ID or status.' : 'Create a draft to begin your field collection.'}</Text>{records.length ? <RecordButton label="Reset search & filters" onPress={() => { setSearch(''); setFilter('All'); }} /> : <RecordButton label="Create first record" primary onPress={newRecord} />}</View>}
+    ListEmptyComponent={recordsState === 'loading' || recordsState === 'error' ? null : <View style={styles.empty}><RecordIcon name="search" size={28} /><Text style={ui.sectionTitle}>{records.length ? 'No records found' : 'No records yet'}</Text><Text style={ui.paragraph}>{records.length ? 'Try a different plant name, ID or status.' : 'Create a draft to begin your field collection.'}</Text>{records.length ? <RecordButton label="Reset search & filters" onPress={() => { setSearch(''); setFilter('All'); }} /> : <RecordButton label="Create first record" primary onPress={newRecord} />}</View>}
     renderItem={({ item }) => <View style={styles.card}>
       <View style={styles.rowTop}><Text style={styles.id}>{item.plantId}</Text><RecordBadge status={item.status} /></View>
       <View style={styles.recordBody}><View style={styles.thumb}><RecordIcon name={item.photos.length ? 'photo' : 'leaf'} size={23} /></View><View style={styles.names}><Text style={styles.name}>{item.commonName || 'Unidentified plant'}</Text><Text style={styles.latin}>{item.scientificName || 'Not identified yet'}</Text><View style={styles.meta}><Text style={ui.caption}>{recordDate(item.updatedAt)}</Text><Text style={ui.caption}>{item.location ? 'GPS attached' : 'GPS missing'}</Text></View></View></View>
-      <View style={styles.rowBottom}><Text style={styles.context}>{item.status === 'Draft' ? 'Continue collecting details' : item.status === 'Failed' ? 'Sample failure · Copy retained' : item.status === 'Synced' ? 'Sample server confirmation' : 'Awaiting upload'}</Text><Pressable accessibilityRole="button" accessibilityLabel={`View details for ${item.commonName}, ${item.plantId}`} onPress={() => open(item)} style={styles.link}><Text style={styles.linkText}>View details →</Text></Pressable></View>
+      <View style={styles.rowBottom}><Text style={styles.context}>{item.status === 'Draft' ? 'Continue collecting details' : item.status === 'Failed' ? 'Sample failure · Copy retained' : item.status === 'Synced' ? (item.sample ? 'Demo server record' : 'Server record') : 'Awaiting upload'}</Text><Pressable accessibilityRole="button" accessibilityLabel={`View details for ${item.commonName}, ${item.plantId}`} onPress={() => open(item)} style={styles.link}><Text style={styles.linkText}>View details →</Text></Pressable></View>
       {item.status === 'Draft' && <RecordButton label="Continue draft" onPress={() => router.push({ pathname: '/plant/new', params: { plantId: item.plantId, edit: 'true' } })} />}
     </View>} />
   </View>;

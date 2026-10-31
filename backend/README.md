@@ -1,15 +1,19 @@
 # Niah Node.js backend
 
-Express 5 + MySQL API for the React Native app. Requires Node.js 24 or newer.
+Express 5 API with a MySQL production adapter and a persistent SQLite demo mode. Node.js 24+ is required.
 
-## Current setup status
+## Run now without installing a database
 
-Dependencies are installed. A local ignored `.env` contains a generated JWT signing secret.
-The API and automated HTTP tests run, but MySQL is not connected yet. A project-local
-MySQL initialization was attempted in `.mysql/` and failed to start with an InnoDB undo
-tablespace error; its logs are retained there for diagnosis. No existing database was changed.
+```powershell
+npm.cmd ci
+npm.cmd run demo:lan
+```
 
-Mobile login is connected to this API. Plant records and Sync still use the mobile session-only sample store.
+Use `npm.cmd run demo` for localhost-only testing. Do not run both on port 3000. LAN demo is intended for fictional data on trusted Wi-Fi and is blocked when NODE_ENV is production. The mobile app uses `http://COMPUTER_WIFI_IP:3000/api`.
+
+Demo accounts use password `NiahDemo2026!`: `botanist@example.com` (four initial records), `field.botanist@example.com` (two), and `officer@example.com` (access to all six). Every demo submission remains marked fictional. These credentials must never be used for production.
+
+Demo records and normalized photos persist in ignored `.local/demo.sqlite`. Do not delete it if you need your test uploads. JWT_SECRET from `.env` is used when present; without it, demo generates a temporary secret and existing tokens stop working after restart. A local `.env` is already configured in this checkout. No real MySQL database is currently connected; prior initialization logs in `.mysql/` remain unchanged.
 
 ## 1. Configure MySQL
 
@@ -48,125 +52,35 @@ try { npm.cmd run user:create } finally { Remove-Item Env:NEW_USER_PASSWORD }
 Use `conservation-officer` for an officer account. Existing accounts are never overwritten.
 Passwords are salted and hashed with Node's scrypt. No default login account is created.
 
-## 3. Start the API
+## Start MySQL mode
 
-```powershell
-npm.cmd run dev
-```
+Run `npm.cmd run dev` or `npm.cmd start` after database configuration. These commands do not load demo users. Set HOST=0.0.0.0 for LAN access; default is localhost. Configure CORS_ORIGINS for exact browser origins. `/api/health` reports process health; `/api/ready` checks repository readiness and storage mode.
 
-- `http://localhost:3000/api/health`: API is running.
-- `http://localhost:3000/api/ready`: verifies database tables; returns 503 until configured.
-- `npm.cmd start`: run without file watching.
-- `npm.cmd test`: HTTP tests using an isolated in-memory test repository (not a real MySQL integration test).
-- `npm.cmd run check`: JavaScript syntax checks.
-
-## API contract
+## API and synchronization
 
 | Method | Route | Purpose |
 | --- | --- | --- |
-| GET | /api/health | Public liveness |
-| GET | /api/ready | Public database readiness |
-| POST | /api/auth/login | `{ "email": "...", "password": "..." }` -> token, expiresIn, user |
+| POST | /api/auth/login | Email/password → token, expiresIn, user |
 | GET | /api/auth/me | Current authenticated user |
-| GET | /api/plants?search=fern&limit=25&offset=0 | Search records, bounded pagination |
-| GET | /api/plants/:plantId | Read an accessible plant |
-| POST | /api/plants | Botanist submits one completed plant record |
+| GET | /api/plants?search=fern&limit=25&offset=0 | Owned records; officers can read all |
+| GET | /api/plants/:plantId | Read accessible record including photos |
+| POST | /api/plants | Botanist submits a complete observation |
 
-Protected endpoints require `Authorization: Bearer <token>`. Tokens expire after one hour;
-roles are reloaded from the database on every request. Botanists read their own records;
-officers can read all records. This is an initial conservative ownership policy for team review.
+Protected endpoints require a Bearer token. Tokens expire after one hour. The server reads roles from its repository on every request. Mobile offline access does not bypass server token validation.
 
-Example POST /api/plants body:
+POST fields: plantId, commonName, scientificName, family, conservationStatus, description, habitatNotes, heightMetres (optional numeric string 0–150), morphology (optional), location, photos. Description and valid GPS are required. Known GPS accuracy must be ≤30 m. Each photo is `{ id, caption, data: "data:image/jpeg;base64,..." }`; native file paths are not upload data.
 
-```json
-{
-  "plantId": "NIAH-PLANT-100",
-  "commonName": "Field observation",
-  "scientificName": "",
-  "family": "",
-  "conservationStatus": "Not assessed",
-  "description": "Observed near the trail.",
-  "habitatNotes": "Shaded ground",
-  "location": { "latitude": 3.81, "longitude": 113.78, "accuracy": 10 },
-  "photos": []
-}
-```
+At most four photos, each ≤5 MB and ≤40 megapixels. JPEG, PNG and WebP input is decoded and re-encoded to JPEG, maximum bounding box 1600 × 1600, quality 80, without metadata. The normalized image is stored in the authenticated record JSON in MySQL or demo SQLite. There are no public media URLs. Request body limit: 28 MB. For larger deployments, migrate image bytes to private object storage and use signed/authenticated downloads.
 
-An insert returns 201 only after MySQL saves the record. The server supplies timestamps,
-owner and `Synced` status. Duplicate IDs return 409, never overwrite data. Invalid inputs
-return 400; unauthenticated requests 401; disallowed roles 403; inaccessible records 404.
-A retry after a lost upload response must compare the existing server record before treating
-a duplicate as success. There is no complete batch/conflict-resolution sync protocol yet.
+New records return 201 after persistence. An identical normalized submission from the same owner returns 200 with the original record, making retries safe after a lost response. Different content or another owner's ID returns 409. No existing record is overwritten. The backend supplies ownership, timestamps and Synced status. The client never submits status, sample or owner.
 
-## Phone and mobile integration
-
-Set `HOST=0.0.0.0` in backend/.env for LAN testing, then restart. On the phone use your
-computer's Wi-Fi IPv4 address, for example `http://192.168.1.10:3000/api/health`.
-`localhost` on a phone means the phone itself. Both devices must be on the same Wi-Fi;
-Windows may ask you to allow Node on private networks. The backend uses port 3000,
-separate from Expo's port. CORS_ORIGINS lists allowed browser origins; native Expo Go
-requests do not require a browser origin.
-
-Next mobile integration work: add persistent secure token storage if needed, refresh profiles through /auth/me,
-map the record form to the POST schema, and update Sync only after confirmed server saves.
-Do not send local-only fields such as status, sample, owner, createdAt or updatedAt.
-
-## Remaining features and deployment
-
-Not implemented: photo binary uploads, plant updates/deletes, officer approval, QR generation,
-offline device storage, automatic/batch sync, password reset, token refresh/revocation, reporting
-and IoT endpoints. Photos currently must be an empty array: file:// phone paths are not server uploads.
-Tests cover authentication, access control, validation, duplicate conflicts and rate limiting;
-real MySQL persistence and device integration still need verification.
-
-This is a local development foundation. Use HTTPS for deployment, managed secrets, database
-backups/encryption and a shared rate-limit store before running multiple server instances.
-Never commit `.env`, `.local/`, `.mysql/`, or database credentials.
-
-## Run with mock data (no MySQL needed)
-
-Stop any API already using port 3000, then run:
+## Validation and deployment limits
 
 ```powershell
-npm.cmd run demo
+npm.cmd test
+npm.cmd run check
 ```
 
-Demo API: `http://127.0.0.1:3000/api`. Check `/health` and `/ready` to see `mode: demo`.
+Tests cover authentication, ownership, roles, validation, image upload, duplicate-safe retry, SQLite restart persistence and rate limits. MySQL integration and physical phone acceptance remain to be tested. The local demo is not a hosted cloud deployment. Production still requires an accessible HTTPS host, a configured MySQL server, real accounts and backups. Existing MySQL schema stores new fields/photos in payload JSON, so no destructive migration is required.
 
-| Email | Password (development only) | Role | Visible sample records |
-| --- | --- | --- | --- |
-| botanist@example.com | NiahDemo2026! | Botanist | 4 |
-| field.botanist@example.com | NiahDemo2026! | Botanist | 2 |
-| officer@example.com | NiahDemo2026! | Conservation Officer | 6 |
-
-Example PowerShell request:
-
-```powershell
-$loginBody = @{ email = 'botanist@example.com'; password = 'NiahDemo2026!' } | ConvertTo-Json
-$login = Invoke-RestMethod 'http://127.0.0.1:3000/api/auth/login' -Method Post -ContentType 'application/json' -Body $loginBody
-Invoke-RestMethod 'http://127.0.0.1:3000/api/plants' -Headers @{ Authorization = "Bearer $($login.token)" }
-```
-
-The six observations cover a canopy tree, fern, palm, climbing plant, seedling and ground herb.
-Names, notes and coordinates are fictional examples, not verified species identifications or
-conservation records. Every demo record has `sample: true`; `Synced` represents a simulated
-server record, not a real upload. Photos are intentionally empty because media upload is not built.
-
-Demo changes stay in memory and reset when the server restarts. Tokens also reset. Demo mode
-binds only to this computer (127.0.0.1), ignores HOST, and refuses NODE_ENV=production.
-`npm run dev` and `npm start` still use real MySQL; they do not load demo accounts.
-
-This adds mock data to the backend only. The mobile app still has its existing local mock
-records; login is connected, while Sync is not yet connected.
-
-## Connected mobile login
-
-The mobile login now calls /api/auth/login and uses the returned role and account details.
-Start `npm.cmd run demo` for a browser on this computer, or `npm.cmd run demo:lan` for
-Expo Go on a phone. The LAN command explicitly binds the demo API to 0.0.0.0:3000;
-use it only with demo credentials on trusted Wi-Fi. Standard demo mode remains localhost-only.
-Both modes remain disabled in production. Do not run both commands at the same time.
-
-The mobile app infers the computer's host from Expo in development. Override with
-EXPO_PUBLIC_API_URL in mobile/.env.local when needed. Login is connected; record browsing
-and Sync still use the mobile preview store. Sessions are memory-only and expire after one hour.
+Not included: server updates/deletes, conflict merging, officer approvals, background sync, account recovery, refresh-token revocation, reporting or IoT endpoints. Keep `.env`, `.local/`, `.mysql/` and database credentials out of Git.

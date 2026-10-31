@@ -19,7 +19,7 @@ export function RecordBadge({ status }: { status: RecordStatus }) {
   const color = status === 'Failed' ? colors.red : status === 'Pending sync' ? '#805B1D' : colors.forest;
   return <View style={[ui.badge, { backgroundColor: status === 'Failed' ? '#FAEEE9' : status === 'Pending sync' ? '#F7EDDA' : colors.soft }]}><RecordIcon name={status === 'Draft' ? 'edit' : status === 'Synced' ? 'check' : status === 'Failed' ? 'alert' : 'clock'} color={color} size={12} /><Text style={[ui.badgeText, { color }]}>{status}</Text></View>;
 }
-export function SampleNotice() { return <Text style={ui.sample}>UI PREVIEW · SESSION-ONLY DATA · NO SERVER SYNC</Text>; }
+export function SampleNotice() { return <Text style={ui.sample}>OFFLINE FIELDWORK · SYNC WHEN CONNECTED</Text>; }
 export function RecordFrame({ children, onTab }: PropsWithChildren<{ onTab?: (destination: string) => void }>) {
   const insets = useSafeAreaInsets();
   return <View style={ui.outer}><View style={ui.frame}><View style={[ui.header, { paddingTop: Math.max(insets.top, 20), paddingLeft: Math.max(insets.left, 20), paddingRight: Math.max(insets.right, 20) }]}><View><Text style={ui.brand}>Niah</Text><Text style={ui.brandCaption}>BIODIVERSITY</Text></View><Text style={ui.role}>Botanist</Text></View><SampleNotice /><View style={ui.body}>{children}</View><RoleNavigationBar items={roleNavigation.botanist.tabs} activeTab="records" onSelect={tab => { const destination = `/navigation/botanist/${tab}`; if (onTab) onTab(destination); else router.navigate(destination); }} /></View></View>;

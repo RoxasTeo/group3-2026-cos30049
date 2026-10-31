@@ -10,6 +10,7 @@ function repository() {
   const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
   const exports = {};
   vm.runInNewContext(code, { exports, Date, Set, Number, Error }, { filename });
+  exports.replaceServerRecords(require('./record-fixtures.json'));
   return exports;
 }
 function input(plantId) { return { plantId, commonName: '', scientificName: '', family: '', conservationStatus: 'Not assessed', description: '', habitatNotes: '' }; }
@@ -91,9 +92,62 @@ test('low-accuracy fix can remain a draft but cannot be marked ready; four-photo
 
 test('signing out resets local preview records instead of exposing another account changes', () => {
   const r = repository();
-  const count = r.getRecordsSnapshot().length;
   r.savePlantRecord(input('NIAH-PRIVATE-DRAFT'));
   r.resetPlantRecords();
-  assert.equal(r.getRecordsSnapshot().length, count);
+  assert.equal(r.getRecordsSnapshot().length, 0);
   assert.equal(r.getPlantRecord('NIAH-PRIVATE-DRAFT'), undefined);
+});
+
+test('server refresh preserves local drafts, replaces deleted remote records and rejects ID collisions', () => {
+ const r = repository();
+ r.resetPlantRecords();
+ assert.equal(r.getRecordsSnapshot().length, 0);
+ r.savePlantRecord(input('LOCAL-DRAFT-1'));
+ const remote = { ...require('./record-fixtures.json')[2], plantId: 'REMOTE-001' };
+ r.replaceServerRecords([remote]);
+ assert.ok(r.getPlantRecord('LOCAL-DRAFT-1'));
+ assert.ok(r.isServerRecord('REMOTE-001'));
+ remote.commonName = 'Mutated outside the store';
+ assert.notEqual(r.getPlantRecord('REMOTE-001').commonName, remote.commonName);
+ assert.throws(() => r.replaceServerRecords([{ ...remote, plantId: 'LOCAL-DRAFT-1' }]), /same ID/);
+ assert.ok(r.getPlantRecord('REMOTE-001'));
+ r.replaceServerRecords([]);
+ assert.equal(r.getPlantRecord('REMOTE-001'), undefined);
+ assert.ok(r.getPlantRecord('LOCAL-DRAFT-1'));
+});
+
+test('durable snapshots survive reopening and isolate accounts; a failed disk write keeps the prior state', () => {
+ const r = repository(); let accountA = null;
+ r.openPlantRecords(null, value => { accountA = value; });
+ r.savePlantRecord(input('OFFLINE-A'));
+ r.resetPlantRecords();
+ r.openPlantRecords(null, () => {});
+ assert.equal(r.getPlantRecord('OFFLINE-A'), undefined);
+ r.openPlantRecords(accountA, value => { accountA = value; });
+ assert.ok(r.getPlantRecord('OFFLINE-A'));
+ const before = r.getRecordsSnapshot();
+ r.openPlantRecords(accountA, () => { throw new Error('Disk full'); });
+ assert.throws(() => r.savePlantRecord(input('UNSAVED-B')), /Disk full/);
+ assert.equal(r.getPlantRecord('UNSAVED-B'), undefined);
+ assert.equal(r.getRecordsSnapshot().length, before.length);
+ assert.throws(() => r.deletePlantDraft('OFFLINE-A'), /Disk full/);
+ assert.ok(r.getPlantRecord('OFFLINE-A'));
+});
+test('upload confirmation persists; failed records can be corrected but active uploads are locked', () => {
+ const r = repository(); let stored;
+ r.openPlantRecords(null, value => { stored = value; });
+ const record = r.savePlantRecord({ ...input('UPLOAD-A'), description: 'Leaves', heightMetres: '2.5', morphology: 'Oval leaves', location: { latitude: 3, longitude: 113 } }, true);
+ r.lockUpload(record.plantId);
+ assert.throws(() => r.returnToDraft(record.plantId), /uploading/);
+ r.unlockUpload(record.plantId);
+ r.failPlantUpload(record.plantId, 'Offline');
+ assert.equal(r.getPlantRecord(record.plantId).status, 'Failed');
+ r.returnToDraft(record.plantId);
+ assert.equal(r.getPlantRecord(record.plantId).status, 'Draft');
+ r.confirmPlantUpload({ ...record, status: 'Synced' });
+ r.resetPlantRecords(); r.openPlantRecords(stored, () => {});
+ assert.equal(r.getPlantRecord(record.plantId).heightMetres, '2.5');
+ assert.ok(r.isServerRecord(record.plantId));
+ assert.throws(() => r.returnToDraft(record.plantId), /Only unsent/);
+ assert.throws(() => r.savePlantRecord({ ...input('BAD-HEIGHT'), heightMetres: '-2' }), /Height/);
 });

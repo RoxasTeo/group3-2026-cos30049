@@ -51,7 +51,9 @@ test('authentication, roles, ownership and duplicate conflicts', async () => {
   await request(app).get('/api/plants').auth('forged', { type: 'bearer' }).expect(401);
   await request(app).post('/api/plants').auth(token(3), { type: 'bearer' }).send(record).expect(403);
   await request(app).post('/api/plants').auth(token(1), { type: 'bearer' }).send(record).expect(201);
-  await request(app).post('/api/plants').auth(token(1), { type: 'bearer' }).send(record).expect(409);
+  await request(app).post('/api/plants').auth(token(1), { type: 'bearer' }).send(record).expect(200);
+  await request(app).post('/api/plants').auth(token(1), { type: 'bearer' }).send({ ...record, description: 'Changed submission' }).expect(409);
+  await request(app).post('/api/plants').auth(token(2), { type: 'bearer' }).send(record).expect(409);
   await request(app).get('/api/plants/NIAH-TEST-001').auth(token(2), { type: 'bearer' }).expect(404);
   await request(app).get('/api/plants/NIAH-TEST-001').auth(token(3), { type: 'bearer' }).expect(200);
   const own = await request(app).get('/api/plants').auth(token(2), { type: 'bearer' }).expect(200);

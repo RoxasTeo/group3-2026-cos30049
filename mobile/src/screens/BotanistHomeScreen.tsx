@@ -1,3 +1,4 @@
+import RecordsConnectionNotice from '../components/records/RecordsConnectionNotice';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -32,10 +33,11 @@ export default function BotanistHomeScreen() {
       <Text style={s.subtitle}>Ready for your next field discovery?</Text>
 
       <View style={s.preview}>
-        <Text style={s.previewLabel}>SESSION-ONLY DATA</Text>
-        <Text style={s.previewText}>Includes records. Changes last for this session only; server sync is not connected.</Text>
+        <Text style={s.previewLabel}>YOUR RECORD COLLECTION</Text>
+        <Text style={s.previewText}>Save fieldwork offline, then upload from Sync. Demo observations are fictional.</Text>
       </View>
 
+      <RecordsConnectionNotice />
       <Pressable accessibilityRole="button" onPress={() => router.push('/plant/new')}
         style={({ pressed }) => [s.primary, pressed && s.pressed]}>
         <View style={s.primaryIcon}><HomeIcon kind="plus" color="#D8E8AD" /></View>
@@ -46,7 +48,8 @@ export default function BotanistHomeScreen() {
         <HomeIcon kind="scan" /><Text style={s.scanLabel}>Scan QR code</Text><Text style={s.arrow}>→</Text>
       </Pressable>
 
-      <View style={s.sectionHeading}><Text accessibilityRole="header" style={s.sectionTitle}>Your field records</Text><Text style={s.smallLabel}>PREVIEW</Text></View>
+      <Pressable accessibilityRole="button" onPress={() => router.push('/plant/reference')} style={s.scan}><HomeIcon kind="leaf" /><Text style={s.scanLabel}>Plant species reference</Text><Text style={s.arrow}>→</Text></Pressable>
+      <View style={s.sectionHeading}><Text accessibilityRole="header" style={s.sectionTitle}>Your field records</Text><Text style={s.smallLabel}>ON THIS DEVICE</Text></View>
       <View style={s.stats}>
         <Pressable accessibilityRole="button" accessibilityLabel={`${drafts} draft records. Open Records`} onPress={() => goTo('records')} style={({ pressed }) => [s.stat, pressed && s.pressed]}>
           <Text style={s.count}>{drafts.toString().padStart(2, '0')}</Text><Text style={s.statLabel}>Drafts</Text><Text style={s.statHint}>Continue in Records →</Text>
@@ -72,7 +75,7 @@ export default function BotanistHomeScreen() {
 
       <View style={s.syncCard}>
         <HomeIcon kind="sync" />
-        <View style={s.actionCopy}><Text style={s.syncTitle}>Bring your discoveries together</Text><Text style={s.syncText}>{pending} records are waiting to sync. Open Sync to review the queue. Cloud uploads are not connected yet.</Text><Pressable accessibilityRole="button" onPress={() => goTo('sync')} style={s.syncButton}><Text style={s.link}>Open Sync →</Text></Pressable></View>
+        <View style={s.actionCopy}><Text style={s.syncTitle}>Bring your discoveries together</Text><Text style={s.syncText}>{pending} records are waiting to sync. Open Sync to review the queue. Ready records include their photographs and GPS.</Text><Pressable accessibilityRole="button" onPress={() => goTo('sync')} style={s.syncButton}><Text style={s.link}>Open Sync →</Text></Pressable></View>
       </View>
       <Text style={s.footer}>Every record is a step towards protecting biodiversity.</Text>
     </ScrollView>

@@ -37,7 +37,7 @@ export default function ProfileScreen() {
           <Text style={s.buttonText}>View plant records</Text><Text style={s.arrow}>→</Text>
         </Pressable>
       </>}
-      <View style={s.notice}><Text style={s.noticeTitle}>SESSION ACCOUNT</Text><Text style={s.noticeText}>Account details come from your sign-in. Field records remain a local preview; backend records and cloud sync are not connected yet. Signing out clears local preview changes.</Text></View>
+      <View style={s.notice}><Text style={s.noticeTitle}>SESSION ACCOUNT</Text><Text style={s.noticeText}>Your account can access its saved records offline. Signing out keeps local fieldwork for your next sign-in. Use Sync to upload ready observations.</Text></View>
     </ScrollView>
   );
 }

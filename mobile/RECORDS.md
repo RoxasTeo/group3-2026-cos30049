@@ -1,64 +1,17 @@
-# Mobile Records handoff
+# Mobile Records workflow
 
-## Scope
+See README.md for startup, scope and phone acceptance checks.
 
-This branch extends the existing `hadif/qr-scanner` Expo application. Records manages collected observations; Sync owns actual transfer to the server. Home, Scan and profile ownership remains with their existing contributors. GPS tagging and photo capture use expo-location and expo-image-picker.
+Routes: `/navigation/botanist/records`, `/plant/new`, `/plant/:plantId`, `/plant/reference`. Login and Botanist role are required.
 
-Entry points:
+The shared store writes each change to account-scoped SQLite (localStorage on web) before notifying screens. Logout clears memory only; the next sign-in to the same API/account reloads saved data. Native session restoration uses SecureStore. Local photos are preserved in the document directory; downloaded server photos are embedded in the cached record.
 
-- `/navigation/botanist/records`: list/search/status filters.
-- `/plant/new`: creates a new draft with a unique temporary ID.
-- `/plant/new?plantId=NIAH-TEMP-004&edit=true`: continue the sample draft.
-- `/plant/NIAH-PLANT-001`: existing QR lookup and record details.
+Drafts can be incomplete and can be edited/deleted. Mark ready requires observations and valid GPS; known accuracy above 30 m blocks readiness. Scientific identification and photos remain optional. Height is optional and limited to 0–150 metres. Up to four validated images are supported.
 
-Routes remain in `src/app`; screen implementations remain in `src/screens`.
+State transitions: Draft → Pending sync → Synced or Failed. Only a confirmed API response sets Synced. Failed/Pending records can return to Draft for corrections, except during an active upload. Synced records are read-only. Same-ID conflicts preserve local data and never overwrite server data.
 
-## Behavior and validation
+Refresh downloads every page before replacing the remote cache. Local unsent records are preserved. If fieldwork changes during refresh, retry instead of applying a stale response. Sync cancels local updates if the active account changes. A lost upload response can be retried without creating duplicates.
 
-Draft saves require a valid, immutable plant ID. Empty common names display `Unidentified plant`. Scientific names are optional. Duplicate IDs are rejected instead of silently replacing another record. Missing edit targets are not recreated. The form uses a navigation-removal guard and a browser reload warning to protect unsaved edits.
+Details display a QR tag encoded as `plant:ID`. Scan can resolve downloaded records offline. Unknown IDs open a new draft; a server ID not yet downloaded may later conflict and is never overwritten.
 
-Only Draft records may be edited or deleted. A separate confirmation is required to delete. Records in Pending sync, Synced or Failed remain read-only in this first version. The repository enforces this even if the edit route is opened directly.
-
-Mark ready validates the plant ID, nonempty field observations and valid latitude/longitude. This provisional rule needs team confirmation, particularly for areas without a GPS fix. Identification and photos are not required. No coordinates are invented to satisfy validation. The seeded draft already has an explicitly illustrative location, allowing the ready workflow to be demonstrated after adding notes. New drafts can capture a foreground GPS fix. Known accuracy above 30 metres blocks marking ready, but can be saved in a draft; this threshold is provisional.
-
-Only the transition `Draft -> Pending sync` is implemented. There is no action that pretends to upload or sets Synced/Failed. Existing Synced/Failed entries are labelled sample records, not evidence of a working transfer. The UI does not expose real cloud data and role URLs are still navigation previews, not authentication.
-
-## Shared repository contract
-
-`src/data/plantRecords.ts` currently holds one in-memory snapshot. `usePlantRecords()` subscribes through React's external-store hook, so list and detail screens refresh when a record changes.
-
-| API | Purpose |
-| --- | --- |
-| `getPlantRecord(id)` | Normalized QR/plant ID lookup, returns an isolated copy |
-| `getRecordsSnapshot()` / `subscribePlantRecords(listener)` | Read and subscribe to the current session snapshot |
-| `selectPlantRecords(records, search, filter)` | Name/ID search, combined status filtering and newest-update-first sorting |
-| `createTemporaryPlantId()` | Assign a unique ID before saving an unidentified record |
-| `savePlantRecord(input, ready?, mode?)` | Create or edit a Draft; optionally validate and mark Pending sync |
-| `deletePlantDraft(id)` | Reject non-Drafts; remove a Draft and notify subscribers |
-| `readinessIssues(record)` | Return field/GPS validation issues without changing records |
-
-The existing form and detail filenames/routes are retained. QR manual entry continues to open a shared record or prefill a form for an unknown valid ID. The plant ID must remain stable once created, because it also identifies the QR record.
-
-Fields include `plantId`, names, family, conservation status, description, habitat notes, status, creation/update timestamps, photos, location and `sample`. Photos contain a picker URI, optional caption, source, filename and capture timestamp, or an explicit sample-placeholder label. Location includes latitude/longitude, optional accuracy, capture timestamp and an explicit sample marker.
-
-## Integration with Ivan / mobile backend
-
-1. Agree on observation fields, user ownership and IDs before adapting the SQLite notes prototype. An observation with GPS/photos is not automatically identical to the web species knowledge record.
-2. Replace the in-memory adapter with persistent create/read/update/delete operations. Persist data before publishing a success snapshot; handle errors and migrations. Avoid shipping sample records as real collected data.
-3. The capture UI now records actual fix/accuracy and handles denied permissions, unavailable services and a 20-second timeout. Photo capture still needs a durable local file copy and persistent metadata to survive app restart. Picker/cache URIs and the current session store are not durable offline storage.
-4. Transfer Pending records from Sync, mark Synced only after server acknowledgement, retain Failed records and failure details for retry. Agree on idempotency and conflict behavior.
-5. The authenticated owner and backend authorization must replace URL-role previews before working with actual field data.
-
-## Validation
-
-From `mobile`: run `npx tsc --noEmit`, `npm run lint` and `npm run test:records`. Fourteen repository and capture-service tests cover normalized search/IDs, combined filters/sorting, incomplete saves, collision protection, invalid readiness without mutation, read-only states, deletion, subscriber updates, defensive copies and temporary ID uniqueness.
-
-Expo browser checks passed for list/search/filter, read-only details, new drafts, missing-GPS/notes validation, Draft-to-Pending without a scientific name, deletion confirmation/cancellation, reactive list updates, unsaved-change cancellation/discard, empty-search reset, widths 320/390/480px, and the existing QR lookup. Physical Android/iOS behavior (keyboard, hardware back, camera and GPS) still requires device validation.
-
-## GPS and photo capture
-
-The new/edit Draft form supports foreground GPS, updating a fix, camera/library selection, review with an optional caption, retake/replace, and confirmed attachment removal. Cancelling or failing capture keeps previously attached data. Location requests can be cancelled; late results are ignored. Photo validation allows up to four JPG/PNG/WebP files, each at most 5 MB. A photograph is attached only after Use photo. Read-only records show the attachments without edit controls.
-
-Native permission descriptions are configured in app.json. Rebuild a development/production native app after changing native configuration; no background location or microphone permission is requested. Web GPS requires a secure origin (localhost or HTTPS); browser photo capture uses the OS file picker and camera support varies by device.
-
-Automated browser checks use simulated GPS and a real browser file chooser, not a physical camera. Native permission failures and picker cancellation are covered with mocked service tests; actual Android/iOS capture still needs device testing.
+Tests cover store validation, persistence, account separation, disk-write failure, upload confirmation, capture policy, API pagination/authentication and QR payload parsing. Native hardware/offline acceptance is documented in README.md.
