@@ -43,7 +43,3 @@ Do not simply switch code or generate a replacement key: this version expects th
 7. After the final check passes, set `DATA_ENCRYPTION_MAINTENANCE=false`, clear operator overrides and start the normal services. Verify existing login, registration, review, reports and maps. Keep the old private key and backups until recovery requirements have been resolved; do not commit or automatically delete them.
 
 `backend/bin/legacy-field-encryption.php` is CLI-only compatibility code for this rollback. It is not required by Web requests and does not enable field encryption. Encryption-generation, apply and encrypted restore commands have been removed from the active setup.
-
-## Security Evidence
-
-[TEST_RESULTS.md](TEST_RESULTS.md) and [TEST_PLAN.md](TEST_PLAN.md) retain the previous encryption assessment as explicitly marked historical evidence. They must not be used to claim that the current version encrypts these fields. Shared encryption, migration and reassessment will be designed with the Mobile team later.

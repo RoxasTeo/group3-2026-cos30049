@@ -71,16 +71,3 @@ The authenticated submission endpoint is available, but Mobile UI authentication
 Review status differs from transport status: `Pending` means awaiting officer review, while Mobile `Pending sync` means not uploaded. Field plant IDs are not species knowledge IDs. No automatic species creation/overwrite occurs on approval.
 
 In this first version each observation receives one immutable review decision. The owning Botanist detail endpoint exposes feedback, but automatic notification, Mobile feedback screens and a linked revision/resubmission workflow are not implemented. A revised submission requires a new client reference; it is not automatically linked to the previous one. These are explicit follow-up tasks, not simulated actions.
-
-## Verification
-
-Frontend production build and three Node checks: `npm run build` and `node --test tests/observationService.test.mjs`. PHP syntax checks on new PHP files.
-
-Seven real PHP/MySQL integration groups cover submission and attachment validation, owner privacy, current roles/account deactivation, CSRF, own-review denial, all decisions, persistence/audit, stale/duplicate version conflict, search escaping and pagination. They are opt-in and must only target a disposable local database whose name ends `_test`:
-
-1. Create the disposable database and configure `DB_HOST=127.0.0.1`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` in your test terminal. Set `REVIEW_TEST_FIXTURES=1`.
-2. `php backend/tests/seed_observations.php` initializes the schema and test-only accounts (`officer`, `admin`, `botanist`, `other-botanist`, `user` at `review.test`; password `Review-Test-Only-2026!`). Never use these accounts in deployment.
-3. Serve `backend/public` on a dedicated localhost port with `COOKIE_SECURE=false` for local HTTP and matching `APP_ORIGIN`. Set `PHP_API_TARGET` when starting Vite on a different test port.
-4. Set `REVIEW_TEST_URL=http://localhost:<PHP-test-port>` and `REVIEW_TEST_PHP` to your PHP executable; run `python backend/tests/observations_integration.py`. Test fixture account role/status changes are restored by the tests. Tests intentionally leave observation evidence in the disposable database for inspection.
-
-Live browser checks against the isolated PHP/MySQL service passed list filters, photo dialog, approval checks, mandatory notes, cancel, all three decisions, reload persistence/read-only details, unauthorized route denial, and 390/768/1440px layouts. Tablet tables may scroll inside their own container; the page itself does not overflow.

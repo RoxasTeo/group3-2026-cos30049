@@ -22,13 +22,3 @@ Counts represent species knowledge records, not individual plants, abundance, ob
 CSV has UTF-8 BOM, filter metadata, totals, status summary and 11 inventory columns including genus, descriptions, ecological information, cultural significance and source update timestamp. Cells are quoted, quotes/newlines preserved, and spreadsheet formula prefixes neutralized. Downloads use a real browser Blob; the success message only claims that a download was requested.
 
 Print/PDF hides navigation/controls, uses A4 landscape, repeats table headers across pages and avoids splitting ordinary rows. Compact spacing prevents a small four-record report from unnecessarily spilling into a second page and removes application background/min-height whitespace. Large inventories naturally span multiple pages. Client-side checks cannot revoke data already rendered/delivered to a user; direct browser printing of it remains possible.
-
-## Validation
-
-- Production build and node --test tests/*.test.mjs pass: all existing map/review/navigation checks plus original report filter/count/CSV checks (9 reported test entries).
-- PHP syntax passes for the new endpoint and opt-in fixture helpers.
-- Three real PHP/MySQL groups verify Officer/Admin data and exact export fields, anonymous/non-officer denial, and immediate role-change/deactivated-account enforcement. In the disposable setup from OBSERVATION_REVIEW.md, run python backend/tests/reports_integration.py with REVIEW_TEST_* and DB_* configured. seed_reports.php checks local *_test opt-in guards before creating a clearly fictional export fixture.
-- Live browser tests against the real database passed all-record/filtered generation, actual CSV download saving, stale-filter export prevention, empty Enter-submit prevention, refresh, responsive widths and no export after logout. Saved CSVs were parsed against API record IDs, BOM, quotes, embedded newlines, Chinese text and formula neutralization.
-- The Print button invoked print, and the browser print engine produced a PDF file. Text extraction confirmed all records and landscape orientation; the rendered result was visually reviewed. The four-record fixture fits one page without app chrome. The user's OS print destination still needs interactive selection.
-
-The fixture DB is isolated from the user's database. No sample data/accounts are created by the application itself. Local integration does not imply production deployment, commit or GitHub push.

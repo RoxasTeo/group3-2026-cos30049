@@ -34,14 +34,11 @@ Prerequisites: Node matching the frontend engines requirement, PHP 8.1+ with PDO
 
 Open `http://localhost:5173`. Keep frontend and PHP on the same hostname. Vite proxies to PHP port 8080; set `PHP_API_TARGET` when using another port. Never put device keys in frontend configuration.
 
-## Validation and feature documentation
+## Feature documentation
 
-From the frontend directory run `npm run build` and `node --test tests/*.test.mjs`. Database/browser tests require explicit disposable local `*_test` settings, as documented below. They create fictional records and must never target production.
+From the frontend directory, run `npm run build` to create a production build.
 
 - [Sensitive data protection](Biodiversity-Web/security/DATA_PROTECTION.md)
-- [Security test plan](Biodiversity-Web/security/TEST_PLAN.md)
-- [Security reassessment results](Biodiversity-Web/security/TEST_RESULTS.md)
-- [Web acceptance and security](Biodiversity-Web/WEB_ACCEPTANCE.md)
 - [Observation review](Biodiversity-Web/Biodiversity-Website/OBSERVATION_REVIEW.md)
 - [Species distribution](Biodiversity-Web/Biodiversity-Website/SPECIES_DISTRIBUTION.md)
 - [Biodiversity reports](Biodiversity-Web/Biodiversity-Website/REPORTS.md)
@@ -53,4 +50,4 @@ From the frontend directory run `npm run build` and `node --test tests/*.test.mj
 
 Baseline: `RoxasTeo/Biodiversity-Web` (`ad9926a`), including species backend and authentication/UI integration. Reports: `bryan/biodiversity-reports` (`6ad8d48`); `bryan/next-feature` has the same tree. Additional review, maps, security, monitoring and tracking were developed in `eric/web-observation-review`. Older Web layouts are not duplicated as separate applications.
 
-Application code, example configuration, migrations, documentation and guarded test tools are included. Dependencies, build output, real credentials and local database files are excluded. Local integration does not push or deploy the application.
+Application code, example configuration, migrations, documentation are included. Dependencies, build output, real credentials and local database files are excluded. Local integration does not push or deploy the application.

@@ -6,17 +6,6 @@ Both POST endpoints accept either `plant_id` or `species_id`, preserving existin
 
 The dashboard refreshes every 30 seconds while visible. Users can pause automatic refresh or manually refresh. Visibility restoration triggers a refresh when enabled. Requests do not overlap, time out after 15 seconds, and are aborted on unmount. A failed refresh retains the previous successful pair of datasets with a stale-data warning and last-successful-update time. A subsequent successful refresh clears the warning. Search and severity filters are retained.
 
-## Verification, 2026-10-31
-
-- PHP syntax checks and production Web build passed.
-- Real PHP/MySQL test: each ID alias writes sensor readings and alerts; conflicting aliases are rejected; GET responses expose the expected ID and values; anonymous/General User access is denied and officer/admin access succeeds. Disposable rows were removed afterward.
-- Browser test with simulated monitoring responses and accelerated clock: initial load, interval update, automatic-refresh checkbox, manual refresh, hidden-tab pause/resume, stale-data warning/recovery and stopping requests after navigation passed.
-- No real device was connected. This does not certify physical sensors, continuous uploads, automatic threat detection or notification delivery.
-
-For the real-backend test, start a dedicated PHP service against the disposable `*_test` database with a temporary `IOT_DEVICE_API_KEY`; set `REVIEW_TEST_DEVICE_KEY` to the same value along with the standard review test environment variables. Run `python backend/tests/monitoring_integration.py`. This test is skipped during the general integration suite unless the explicit device test key is supplied.
-
-For browser verification, supply Playwright tooling, set `REVIEW_TEST_FIXTURES=1` and `REVIEW_TEST_WEB_URL=http://localhost:<test-web-port>`, then run `node tests/monitoring.acceptance.cjs` from `Biodiversity-Website`. Responses are deliberately simulated to exercise refresh/error states without hardware.
-
 ## Device-team handoff
 
 Agree that the current ID is a species row ID. If hardware needs to track separate individual plants or multiple sensors per plant, that requires an explicit plant/device relationship in a later schema. Configure the device and private API key, verify real payloads persist and appear within the next visible-page refresh, and then test real threat-generation rules separately. No such rules were added by this Web refresh fix.
@@ -30,7 +19,6 @@ The monitoring page now includes a separate history snapshot: inclusive start/en
 
 For a new database the schema includes range-query indexes. Existing installations should apply `backend/migrations/002_monitoring_history_indexes.sql` once with a schema operator after checking whether those named indexes already exist. This creates indexes only and does not alter or delete readings.
 
-Verified on 2026-10-31 using fictional fixtures: inclusive day boundaries, daily/monthly aggregation, weighted means, missing days, same-day and empty ranges, pagination with no duplicate rows, invalid dates/ranges/IDs and role denials (3 real PHP/MySQL test groups). Browser verification against the real API/database passed date/species filtering, metric switching, chart gaps, pagination, empty results, failed requests with retained results, recovery and 390px layout. Temporary fixture rows were removed. Run `python backend/tests/history_integration.py` with the standard disposable test environment. Run `node tests/history.acceptance.cjs` with Playwright, `REVIEW_TEST_WEB_URL`, `REVIEW_TEST_FIXTURES=1`, `REVIEW_TEST_PHP` and disposable DB settings. No physical device or deployment was used.
 
 
 ## Automatic server-side threat detection
@@ -49,7 +37,6 @@ New installations include a lookup index on `(plant_id, alert_type, created_at)`
 
 Verification, 2026-10-31: pure rule tests passed normal values, all threshold boundaries, four rule types, combined conditions, disabled mode and invalid settings. Four real PHP/MySQL groups passed cooldown suppression, severity escalation, cooldown expiry, multiple rules, stale-baseline handling, input/role checks and transactional rollback after an injected alert-write failure (the temporary test trigger was removed). A browser test posted synthetic readings through the real sensor API, verified database-generated alerts and observed a new humidity alert on the next accelerated 30-second refresh; the thresholds panel also rendered correctly. Fictional fixtures were removed. Existing monitoring compatibility tests and Web build passed. No physical sensor validation is claimed.
 
-Reproduce with the dedicated disposable device-key server: `php backend/tests/threat_rules.php`, `python backend/tests/threat_detection_integration.py`, and `node tests/threat-detection.acceptance.cjs` with the same review/device test variables as above. The failure-injection test requires trigger privileges only on the disposable test database; runtime production credentials do not require trigger privileges.
 
 
 Individual plant/device association is now implemented separately; see `TRACKING.md`. Its per-device upload contract and assignment-scoped baselines supersede the earlier single-stream-per-species assumption for tracked uploads. Legacy uploads remain species-only.

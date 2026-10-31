@@ -61,23 +61,4 @@ The minimum policy grants species management to `conservation_officer`. `botanis
 
 Vue integration: add a login screen, load `/auth/me.php` on application startup, redirect 401 responses to login, show 403 as access denied, and clear local user state after logout. Route guards improve navigation; backend guards enforce security. The current Web workspace uses the shared PHP species API and database. The old sample repository is no longer imported by the live application shell.
 
-## Acceptance checks
-
-With a dedicated test database and two provisioned roles:
-
-1. Get CSRF token; correct login succeeds, rotates Session ID and token, and returns no hash.
-2. Wrong password, unknown user, and disabled user return the same 401 message.
-3. Five failed attempts cause the next attempt to return 429, including attempts using fresh browser sessions.
-4. Missing/incorrect CSRF and unapproved Origin return 403; malformed JSON returns 400.
-5. `/auth/me.php` before login and after logout returns 401.
-6. Officer passes a guarded species endpoint; botanist receives 403, including direct HTTP requests.
-7. Set short positive timeout values in the test environment; idle and absolute expiry both deny access.
-8. Disable a logged-in user or change their role in the test database; the next guarded request enforces the change.
-9. Confirm production Cookie flags and check that `.env`, SQL, and CLI scripts are not served.
-
-Run syntax checks with `php -l` on every PHP file. These checks alone do not establish working database authentication. Record integration results and later vulnerability assessment/reassessment evidence for the project SSDLC deliverables.
-
-Local validation completed using an isolated MySQL instance and local species adapters: correct/incorrect/unknown/disabled login, Session ID rotation, throttling across browser sessions, officer CRUD, botanist denial, role/status changes, logout, and idle/absolute expiry. Fifteen database-independent HTTP checks covered cookie flags, method/origin/content-type restrictions, malformed/oversized JSON, and CSRF. The local test harness and species adapters are excluded from this authentication-only change. The checklist above supports verification by teammates; browser UI integration and HTTPS deployment remain separate checks.
-
-
-See `../WEB_ACCEPTANCE.md` for the integrated non-IoT acceptance and security results, and `../DEPLOYMENT.md` for production requirements and checks.
+See the [Web Setup Guide](../SETUP.md) for local startup and [deployment requirements](../DEPLOYMENT.md) for production configuration.

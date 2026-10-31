@@ -1,0 +1,7 @@
+# Local verification materials are not part of the shared Web application.
+/Biodiversity-Web/Biodiversity-Website/tests/
+/Biodiversity-Web/backend/tests/
+/Biodiversity-Web/TEST_RESULTS.md
+/Biodiversity-Web/WEB_ACCEPTANCE.md
+/Biodiversity-Web/security/TEST_PLAN.md
+/Biodiversity-Web/security/TEST_RESULTS.md

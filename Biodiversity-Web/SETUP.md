@@ -177,10 +177,9 @@ Optional frontend checks, from the frontend directory:
 
 ```powershell
 npm run build
-node --test tests/*.test.mjs
 ```
 
-These checks do not replace database/browser acceptance tests. Automated integration fixtures require an explicitly isolated loopback `*_test` database; see [the security test plan](security/TEST_PLAN.md). Do not run fixtures against data you want to keep.
+The shared branch contains application code and setup documentation; local test scripts and test reports are excluded.
 
 IoT pages can open without physical devices. Actual readings and automated alerts require valid device submissions and configured credentials. A new local database has no registered devices. Never put device secrets in frontend configuration; coordinate device integration using [tracking](TRACKING.md) and [monitoring](MONITORING.md) documentation. Mobile sync and physical-device verification remain separate integration work.
 
@@ -212,8 +211,6 @@ For later updates, preserve local changes, pull `main`, read migration notes, ru
 
 - [Backend configuration and authentication](backend/README.md)
 - [Data protection status and encryption rollback](security/DATA_PROTECTION.md)
-- [Security test plan](security/TEST_PLAN.md)
-- [Security test results](security/TEST_RESULTS.md)
 - [Production deployment requirements](DEPLOYMENT.md)
 
 This guide starts local development services only. It does not publish a public website or certify production security.

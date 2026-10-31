@@ -27,13 +27,3 @@ Leaflet 1.9.4 is pinned in package.json/package-lock.json. Online context uses `
 `src/data/niah-context.json` contains an embedded local vector fallback from OpenStreetMap: roads/paths, rivers and available forest geometry in the Niah area (query bounding box south=3.77, west=113.73, north=3.85, east=113.84; downloaded 2026-10-31 via Overpass API, `out geom`). It is static map context, not park boundary/survey or plant data. Attribution is always displayed. OpenStreetMap data is [ODbL](https://www.openstreetmap.org/copyright); retain attribution and review redistribution obligations when publishing modified geographic data. This context is geographically limited: online tiles are needed for wider geography. A tile-error message offers the local-context mode without hiding observation points.
 
 No production records or sample observations are embedded in this map. No map-specific SQL migration is required: it reads the observation review tables and existing species schema, so deploy the review migration first. Existing unlinked field submissions will not magically appear: the Mobile/submission integrator must provide the correct optional species link and actual GPS. Do not map plant tags directly to numeric species IDs.
-
-## Verification
-
-- `npm run build` passes, with a separate lazy-loaded map chunk.
-- `node --test tests/*.test.mjs` passes six frontend policy groups (review plus map).
-- `php -l backend/public/api/get_species_distribution.php` passes.
-- Against the same disposable local `*_test` database described in OBSERVATION_REVIEW.md, run `python backend/tests/distribution_integration.py` with the existing REVIEW_TEST_* and DB_* test environment. Four real PHP/MySQL groups verify approved/linked eligibility, missing GPS and unlinked counts, pending isolation, current knowledge metadata, combined filters, invalid input/search escaping and Officer/Admin authorization. `seed_distribution.php` creates explicitly fictional species only after checking the opt-in local test environment.
-- Live browser checks against real PHP/MySQL cover keyboard markers, pending markers, no-GPS details, combined filtering, species profile/map deep links, empty results, deliberate tile failure/local vector fallback, role denial and 390/768/1440px layouts. Actual online tile availability depends on the network/provider; failure is reported and does not invent geography or observations.
-
-Mobile-to-server synchronisation, automatic species matching, public visitor access and sensitive-location disclosure policies remain separate integration/product decisions. The page is restricted to Officer/Admin, not public visitors. Report/QR/monitoring integrations are not silently merged by this change.

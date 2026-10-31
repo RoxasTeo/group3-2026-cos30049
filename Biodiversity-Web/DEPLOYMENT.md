@@ -21,10 +21,10 @@ Passwords use bcrypt hashing. Sessions use HttpOnly, SameSite cookies with Secur
 
 ## Release verification
 
-Run the non-IoT acceptance tests described in `WEB_ACCEPTANCE.md`, then verify on the deployed HTTPS origin: login/logout and timeouts, cookie flags, no access to private paths, account suspension, role changes, actual photograph CRUD, review/history, map filters, real CSV/PDF export. Perform an external vulnerability scan and manually verify findings, fix them and repeat the same scan. Record results against the deployed commit and environment; the local results do not certify a future deployment.
+Verify on the deployed HTTPS origin: login/logout and timeouts, cookie flags, no access to private paths, account suspension, role changes, actual photograph CRUD, review/history, map filters, real CSV/PDF export. Perform an external vulnerability scan and manually verify findings, fix them and repeat the same scan. Record results against the deployed commit and environment; the local results do not certify a future deployment.
 
 
 Tracking deployments must also apply migration 004 before using the updated monitoring APIs; follow `TRACKING.md`. Keep per-device upload keys private. Tested local functionality is not evidence of hardware or production readiness.
 
 
-Before using this version with a database previously encrypted by migration 005, complete the documented rollback using its original key. Do not apply the former encryption migration to a fresh database. Runtime credentials need only data read/write grants; schema migration and security fault-injection tests require separate operator privileges. See `security/TEST_PLAN.md` and `security/TEST_RESULTS.md`.
+Before using this version with a database previously encrypted by migration 005, complete the documented rollback using its original key. Do not apply the former encryption migration to a fresh database. Runtime credentials need only data read/write grants; schema migration and security fault-injection tests require separate operator privileges.
