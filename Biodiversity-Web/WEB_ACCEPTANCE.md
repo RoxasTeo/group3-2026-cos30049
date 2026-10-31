@@ -48,3 +48,8 @@ From `Biodiversity-Website`, run `npm run build`, `node --test tests/*.test.mjs`
 ## Not certified locally
 
 Cloud hosting, a live HTTPS certificate, database/backup encryption at rest, real remote TLS negotiation, external deployed vulnerability scanning and restore verification need deployment access and evidence. `DEPLOYMENT.md` and the read-only operator check prepare these steps without pretending they have already happened. Mobile login/offline storage/sync/review feedback and QR workflows remain for the separate Mobile task. Optional innovation is not a mandatory Web requirement.
+
+
+## Sensitive-data protection update
+
+User names/emails and observation/review text are now encrypted at application level. The updated setup/migration and local security reassessment are documented in `security/DATA_PROTECTION.md`, `security/TEST_PLAN.md` and `security/TEST_RESULTS.md`. These supersede the earlier absence of field encryption; the cloud/disk/HTTPS limitations still apply.

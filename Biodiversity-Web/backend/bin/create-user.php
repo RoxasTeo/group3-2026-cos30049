@@ -13,6 +13,6 @@ $password = rtrim(fgets(STDIN) ?: '', "\r\n");
 if (strlen($password) < 12 || strlen($password) > 72) {
     fwrite(STDERR, "Password must be 12-72 bytes.\n"); exit(1);
 }
-$stmt = database()->prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)');
-$stmt->execute([trim($name), $email, password_hash($password, PASSWORD_BCRYPT, ['cost' => 10]), $role]);
+createProtectedUser(database(), trim($name), $email, password_hash($password, PASSWORD_BCRYPT, ['cost' => 10]), $role);
+
 echo "User created.\n";

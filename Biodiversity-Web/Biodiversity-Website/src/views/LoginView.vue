@@ -26,6 +26,7 @@ async function submit() {
 </script>
 <template>
   <AuthLayout title="Welcome back" subtitle="Sign in to your conservation workspace.">
+    <p v-if="route.query.registered === '1'" class="auth-feedback" role="status">Account created. Sign in with your new account.</p>
     <p v-if="route.query.reason === 'unavailable'" class="error" role="alert">Unable to check your session. Please try
       signing in again.</p>
     <p v-else-if="route.query.reason === 'expired'" class="auth-feedback" role="status">Your session has ended. Please

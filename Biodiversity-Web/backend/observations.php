@@ -49,6 +49,7 @@ function observationPhotos(mixed $photos): array {
 }
 
 function observationSummary(array $row): array {
+    if (isset($row['submitter_name'])) $row['submitter_name'] = revealData($row['submitter_name'], 'users.name:' . $row['submitted_by']);
     foreach (['id', 'submitted_by', 'photo_count', 'version'] as $key) $row[$key] = (int) $row[$key];
     $row['species_id'] = $row['species_id'] === null ? null : (int) $row['species_id'];
     $row['reference'] = 'OBS-' . str_pad((string) $row['id'], 6, '0', STR_PAD_LEFT);
@@ -64,10 +65,14 @@ function observationDetail(PDO $db, int $id): ?array {
     $row = $stmt->fetch();
     if (!$row) return null;
     $row = observationSummary($row);
+    foreach (['field_notes','habitat'] as $field) $row[$field] = revealData($row[$field], observationSecretContext($row, $field));
     $row['photos'] = json_decode($row['photos'], true, 32, JSON_THROW_ON_ERROR);
-    $stmt = $db->prepare('SELECT r.id, r.decision, r.notes, r.checks, r.observation_version, r.created_at, u.name AS reviewer_name FROM observation_reviews r JOIN users u ON u.id = r.reviewer_id WHERE r.observation_id = ? ORDER BY r.id');
+    $stmt = $db->prepare('SELECT r.id, r.reviewer_id, r.observation_id, r.decision, r.notes, r.checks, r.observation_version, r.created_at, u.name AS reviewer_name FROM observation_reviews r JOIN users u ON u.id = r.reviewer_id WHERE r.observation_id = ? ORDER BY r.id');
     $stmt->execute([$id]);
     $row['reviews'] = array_map(function (array $review): array {
+        $review['reviewer_name'] = revealData($review['reviewer_name'], 'users.name:' . $review['reviewer_id']);
+        $review['notes'] = revealData($review['notes'], 'reviews.notes:' . $review['observation_id'] . ':' . $review['observation_version'] . ':' . $review['reviewer_id']);
+        unset($review['reviewer_id'], $review['observation_id']);
         $review['checks'] = json_decode($review['checks'], true, 32, JSON_THROW_ON_ERROR);
         return $review;
     }, $stmt->fetchAll());

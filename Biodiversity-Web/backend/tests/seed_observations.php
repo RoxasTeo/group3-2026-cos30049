@@ -11,7 +11,9 @@ $sql = preg_replace('/(?:CREATE DATABASE IF NOT EXISTS biodiversity_db|USE biodi
 $db->exec($sql);
 $hash = password_hash('Review-Test-Only-2026!', PASSWORD_BCRYPT);
 foreach (['officer' => 'conservation_officer', 'admin' => 'admin', 'botanist' => 'botanist', 'other-botanist' => 'botanist', 'user' => 'user'] as $name => $role) {
-    $stmt = $db->prepare('INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE is_active = TRUE');
-    $stmt->execute([ucwords(str_replace('-', ' ', $name)), "$name@review.test", $hash, $role]);
+    $stmt = $db->prepare('SELECT id FROM users WHERE email_lookup = ?');
+    $stmt->execute([emailLookup("$name@review.test")]); $id = $stmt->fetchColumn();
+    if ($id) { $stmt = $db->prepare('UPDATE users SET is_active=TRUE WHERE id=?'); $stmt->execute([$id]); }
+    else createProtectedUser($db, ucwords(str_replace('-', ' ', $name)), "$name@review.test", $hash, $role);
 }
 echo "Disposable review fixtures ready.\n";

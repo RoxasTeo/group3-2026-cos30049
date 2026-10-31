@@ -29,4 +29,7 @@ $sql = 'SELECT o.id, o.submitted_by, o.plant_tag, o.species_id, o.common_name, o
 $stmt = $db->prepare($sql); $stmt->execute($params);
 $rows = array_map('observationSummary', $stmt->fetchAll());
 $submitters = $db->query('SELECT DISTINCT u.id, u.name FROM users u JOIN observations o ON o.submitted_by = u.id ORDER BY u.name, u.id')->fetchAll();
+foreach ($submitters as &$submitter) $submitter['name'] = revealData($submitter['name'], 'users.name:' . $submitter['id']);
+unset($submitter);
+usort($submitters, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 respond(200, ['observations' => $rows, 'counts' => $counts, 'submitters' => $submitters, 'total' => $total, 'page' => $page, 'pages' => $pages]);

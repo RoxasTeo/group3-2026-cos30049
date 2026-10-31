@@ -1,11 +1,10 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { register } from '../services/authService'
 import AuthLayout from '../components/AuthLayout.vue'
 import PasswordField from '../components/PasswordField.vue'
 
-const route = useRoute()
 const router = useRouter()
 
 const name = ref('')
@@ -43,22 +42,22 @@ async function submit() {
 
   try {
       if (new TextEncoder().encode(password.value).length > 72) throw new Error('Password must not exceed 72 bytes.')
-      const result = await register(name.value, email.value, password.value)
-      const destination = typeof route.query.redirect === 'string' && /^\/(?:species(?:\/[^?#]*)?)?$/.test(route.query.redirect) ? route.query.redirect : '/login' 
+      await register(name.value, email.value, password.value)
+      await router.replace({ path: '/login', query: { registered: '1' } })
   } catch (error) { feedback.value = error.message }
-  finally { busy.value = false }
+  finally { password.value = ''; confirmation.value = ''; busy.value = false }
 }
 </script>
 <template>
   <AuthLayout title="Create an User Account" subtitle="Register your details to get started.">
-    <form class="auth-form" @submit.prevent="submit" @input="clearFeedback">
+    <form class="auth-form" @submit.prevent="submit" @input="feedback = ''">
       <label for="register-name">Full name<input id="register-name" v-model="name" autocomplete="name" required
           maxlength="120" placeholder="Your full name"></label>
       <label for="register-email">Email address<input id="register-email" v-model.trim="email" type="email"
           autocomplete="email" required maxlength="254" placeholder="name@example.com"></label>
       <PasswordField id="register-password" v-model="password" label="Password" autocomplete="new-password"
-        :minlength="8" />
-      <p class="password-hint">Use 8–128 characters. The final password policy will be set by your team.</p>
+        :minlength="12" />
+      <p class="password-hint">Use at least 12 characters. Passwords must not exceed 72 UTF-8 bytes.</p>
       <PasswordField id="register-confirmation" v-model="confirmation" label="Confirm password"
         autocomplete="new-password" :minlength="12" />
       <p v-if="feedback" class="error" role="alert">{{ feedback }}</p>

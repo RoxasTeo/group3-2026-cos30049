@@ -1,5 +1,7 @@
 # Web authentication (SCRUM-32)
 
+Sensitive fields now require a private encryption key and operator data migration before using existing accounts. Follow `../security/DATA_PROTECTION.md` before account provisioning. API responses retain their original format; SQL integrations must use `email_lookup` and the shared encryption helpers rather than querying plaintext email. Passwords remain bcrypt hashes.
+
 PHP 8.1+ with PDO MySQL and MySQL/MariaDB. Serve **only `backend/public`** as the web root. Public registration provisions only the General User role. Officers and botanists are provisioned by an administrator; clients cannot select a privileged role during registration.
 
 ## Setup
