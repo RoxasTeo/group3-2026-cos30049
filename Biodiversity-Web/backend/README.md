@@ -1,6 +1,6 @@
 # Web authentication (SCRUM-32)
 
-PHP 8.1+ with PDO MySQL and MySQL/MariaDB. Serve **only `backend/public`** as the web root. No public registration or role selection endpoint is provided. Accounts are provisioned by an operator.
+PHP 8.1+ with PDO MySQL and MySQL/MariaDB. Serve **only `backend/public`** as the web root. Public registration provisions only the General User role. Officers and botanists are provisioned by an administrator; clients cannot select a privileged role during registration.
 
 ## Setup
 
@@ -55,7 +55,7 @@ requireCsrf();
 
 The minimum policy grants species management to `conservation_officer`. `botanist` is for field submissions and has no implied web management permission. `admin` is provisionable but has **no automatic bypass**: explicitly agree and list allowed roles per endpoint. The project scope's references to trainers/guides differ from its botanical roles and require team clarification.
 
-Vue integration: add a login screen, load `/auth/me.php` on application startup, redirect 401 responses to login, show 403 as access denied, and clear local user state after logout. Route guards improve navigation; backend guards enforce security. The current UI branch uses localStorage demo data, which must be replaced with real API calls for integration testing.
+Vue integration: add a login screen, load `/auth/me.php` on application startup, redirect 401 responses to login, show 403 as access denied, and clear local user state after logout. Route guards improve navigation; backend guards enforce security. The current Web workspace uses the shared PHP species API and database. The old sample repository is no longer imported by the live application shell.
 
 ## Acceptance checks
 
@@ -74,3 +74,6 @@ With a dedicated test database and two provisioned roles:
 Run syntax checks with `php -l` on every PHP file. These checks alone do not establish working database authentication. Record integration results and later vulnerability assessment/reassessment evidence for the project SSDLC deliverables.
 
 Local validation completed using an isolated MySQL instance and local species adapters: correct/incorrect/unknown/disabled login, Session ID rotation, throttling across browser sessions, officer CRUD, botanist denial, role/status changes, logout, and idle/absolute expiry. Fifteen database-independent HTTP checks covered cookie flags, method/origin/content-type restrictions, malformed/oversized JSON, and CSRF. The local test harness and species adapters are excluded from this authentication-only change. The checklist above supports verification by teammates; browser UI integration and HTTPS deployment remain separate checks.
+
+
+See `../WEB_ACCEPTANCE.md` for the integrated non-IoT acceptance and security results, and `../DEPLOYMENT.md` for production requirements and checks.

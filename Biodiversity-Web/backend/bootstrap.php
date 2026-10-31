@@ -17,14 +17,32 @@ function setting(string $key, string $default = ''): string {
     return $value === false ? $default : $value;
 }
 
+function databaseOptions(): array {
+    $options = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC];
+    $ca = setting('DB_SSL_CA');
+    if ($ca !== '') {
+        if (!is_readable($ca)) throw new RuntimeException('Database CA certificate is unavailable.');
+        $options[PDO::MYSQL_ATTR_SSL_CA] = $ca;
+        $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = true;
+    }
+    if (setting('APP_ENV') === 'production' && (setting('COOKIE_SECURE', 'true') !== 'true' || in_array(setting('DB_USER'), ['', 'root'], true) || setting('DB_PASSWORD') === '' || !str_starts_with(setting('APP_ORIGIN'), 'https://') || (!in_array(setting('DB_HOST', '127.0.0.1'), ['127.0.0.1', 'localhost'], true) && $ca === ''))) {
+        throw new RuntimeException('Production requires secure cookies, HTTPS, a dedicated database user and TLS for a remote database.');
+    }
+    return $options;
+}
+
 function database(): PDO {
     static $db;
     if (!$db) {
         $db = new PDO(
             'mysql:host=' . setting('DB_HOST', '127.0.0.1') . ';port=' . setting('DB_PORT', '3306') . ';dbname=' . setting('DB_NAME', 'biodiversity_db') . ';charset=utf8mb4',
             setting('DB_USER'), setting('DB_PASSWORD'),
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_EMULATE_PREPARES => false, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
+            databaseOptions()
         );
+        if (setting('DB_SSL_CA') !== '') {
+            $tls = $db->query("SHOW SESSION STATUS LIKE 'Ssl_cipher'")->fetch();
+            if (!$tls || ($tls['Value'] ?? '') === '') { $db = null; throw new RuntimeException('Encrypted database transport was not negotiated.'); }
+        }
     }
     return $db;
 }
@@ -39,6 +57,8 @@ function api(array $methods): void {
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
     header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+    header('Referrer-Policy: same-origin');
     set_exception_handler(function (Throwable $error): void {
         error_log((string) $error);
         respond(500, ['error' => 'Internal server error']);

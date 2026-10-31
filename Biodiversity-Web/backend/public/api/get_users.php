@@ -2,9 +2,7 @@
 require_once __DIR__ . '/../../bootstrap.php';
 api(['GET']);
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    respond(403, ['error' => 'Access Denied: Administrative credentials required.']);
-}
+requireRole(['admin']);
 
 $db = database();
 try {

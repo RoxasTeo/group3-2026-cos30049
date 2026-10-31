@@ -1,19 +1,14 @@
 <?php
-require_once __DIR__ . '/../../bootstrap.php';
+require_once __DIR__ . '/../../observations.php';
 api(['POST']);
+
+requireRole(['admin']);
 requireCsrf();
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    respond(403, ['error' => 'Access Denied: Administrative credentials required.']);
-}
 
 $body = jsonBody();
-$target_user_id = isset($body['user_id']) ? (int)$body['user_id'] : null;
-$new_role = isset($body['role']) ? trim($body['role']) : '';
-
-if (!$target_user_id || empty($new_role)) {
-    respond(400, ['error' => 'Missing required parameter slots: user_id and role variables are mandatory.']);
-}
+$target_user_id = observationId($body['user_id'] ?? null);
+$new_role = observationText($body, 'role', 40, true);
 
 $valid_system_roles = ['admin', 'conservation_officer', 'botanist', 'user'];
 if (!in_array($new_role, $valid_system_roles, true)) {
@@ -27,6 +22,9 @@ try {
                        you from removing your own administrative role.']);
     }
 
+    $check = $db->prepare('SELECT id FROM users WHERE id = ?');
+    $check->execute([$target_user_id]);
+    if (!$check->fetch()) respond(404, ['error' => 'User not found.']);
     $sql = "UPDATE users SET role = ? WHERE id = ?";
     $stmt = $db->prepare($sql);
     $stmt->execute([$new_role, $target_user_id]);

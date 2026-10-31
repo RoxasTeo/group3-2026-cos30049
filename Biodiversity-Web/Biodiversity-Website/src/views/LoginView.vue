@@ -12,7 +12,7 @@ async function submit() {
   try {
     if (new TextEncoder().encode(password.value).length > 72) throw new Error('Password must not exceed 72 bytes.')
     const user = await login(email.value, password.value)
-    const destination = typeof route.query.redirect === 'string' && /^\/(?:species(?:\/[^?#]*)?)?$/.test(route.query.redirect) ? route.query.redirect : '/'
+    const destination = typeof route.query.redirect === 'string' && /^\/(?:species(?:\/[^?#]*)?|observations(?:\/\d+)?|distribution|reports|tracking|admin\/users(?:\/add)?|monitoring)?(?:\?[^#]*)?$/.test(route.query.redirect) ? route.query.redirect : '/'
     let targetPath = '/access-denied'
     if (user.role === 'user') {
       targetPath = '/species-dashboard'

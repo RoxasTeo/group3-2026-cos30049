@@ -5,7 +5,7 @@ let csrf = '', sessionRequest = null
 export class ApiError extends Error {
   constructor(message, status) { super(message); this.status = status }
 }
-export function clearIdentity() { currentUser.value = null; csrf = '' }
+export function clearIdentity() { currentUser.value = null; csrf = ''; csrfTokenStr.value = '' }
 export async function request(path, options = {}) {
   options.headers = options.headers || {}
   if (options.method && options.method !== 'GET') {
@@ -29,6 +29,8 @@ export async function request(path, options = {}) {
     csrfTokenStr.value = body.csrf_token
   }
   if (!response.ok) {
+    if (response.status === 401 && !path.startsWith('/auth/')) { clearIdentity(); window.dispatchEvent(new Event('session-expired')) }
+    if (response.status === 403 && !path.startsWith('/auth/')) window.dispatchEvent(new Event('access-changed'))
     throw new ApiError(body.error || 'Request failed.', response.status)
   }
   return body
@@ -40,7 +42,7 @@ export async function refreshSession() {
       const body = await request('/auth/me.php')
       currentUser.value = body.user; csrf = body.csrf_token
       return body.user
-    } catch (error) { if (error.status === 401) return null; throw error }
+    } catch (error) { if (error.status === 401) { clearIdentity(); return null }; throw error }
   })()
   try { return await sessionRequest } finally { sessionRequest = null }
 }

@@ -1,18 +1,13 @@
 <?php
-require_once __DIR__ . '/../../bootstrap.php';
+require_once __DIR__ . '/../../observations.php';
 api(['POST']);
+
+requireRole(['admin']);
 requireCsrf();
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    respond(403, ['error' => 'Access Denied: Administrative credentials required.']);
-}
 
 $body = jsonBody();
-$target_user_id = isset($body['user_id']) ? (int)$body['user_id'] : null;
-
-if (!$target_user_id) {
-    respond(400, ['error' => 'Missing required parameter slots: user_id is mandatory.']);
-}
+$target_user_id = observationId($body['user_id'] ?? null);
 
 $db = database();
 try {

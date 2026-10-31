@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { storageWarning } from './services/speciesService'
+
 import {
   currentUser,
   logout,
@@ -37,7 +37,7 @@ async function recheck() {
     if (!user) {
       expired()
     } else {
-      const allowedRoles = [
+      const allowedRoles = route.meta.roles || [
         'user',
         'conservation_officer',
         'admin',
@@ -82,7 +82,7 @@ function hasAccess(linkPath, role = currentUser.value?.role) {
     return (
       linkPath === '/' ||
       linkPath.startsWith('/species') ||
-      linkPath === '/monitoring'
+      linkPath === '/monitoring' || linkPath.startsWith('/observations') || linkPath === '/distribution' || linkPath === '/reports' || linkPath === '/tracking'
     )
   }
 
@@ -175,6 +175,14 @@ onUnmounted(() => {
           Species management
         </RouterLink>
 
+        <RouterLink v-if="['admin', 'conservation_officer'].includes(currentUser?.role)" to="/tracking" :class="{ selected: $route.path === '/tracking' }" @click="handleNavigation($event, '/tracking')"><span aria-hidden="true">⌖</span>Plant & sensor tracking</RouterLink>
+
+        <RouterLink v-if="['admin', 'conservation_officer'].includes(currentUser?.role)" to="/distribution" :class="{ selected: $route.path === '/distribution' }" @click="handleNavigation($event, '/distribution')"><span aria-hidden="true">◎</span>Species distribution</RouterLink>
+
+        <RouterLink v-if="['admin', 'conservation_officer'].includes(currentUser?.role)" to="/observations" :class="{ selected: $route.path.startsWith('/observations') }" @click="handleNavigation($event, '/observations')"><span aria-hidden="true">✓</span>Observation review</RouterLink>
+
+        <RouterLink v-if="['admin', 'conservation_officer'].includes(currentUser?.role)" to="/reports" :class="{ selected: $route.path === '/reports' }" @click="handleNavigation($event, '/reports')"><span aria-hidden="true">▤</span>Biodiversity reports</RouterLink>
+
         <RouterLink v-if="['admin', 'conservation_officer'].includes(currentUser?.role)" to="/monitoring" :class="{
           selected: $route.path === '/monitoring',
           locked: !hasAccess('/monitoring')
@@ -264,18 +272,10 @@ onUnmounted(() => {
       </header>
 
       <main id="main" tabindex="-1">
-        <div class="demo-note">
-          Sample data · Changes are saved in this browser only.
-          Species names and assessments are fictional.
-        </div>
-
         <p v-if="error" class="error" role="alert">
           {{ error }}
         </p>
 
-        <p v-if="storageWarning" class="error" role="alert">
-          {{ storageWarning }}
-        </p>
 
         <RouterView :key="$route.fullPath" />
       </main>
@@ -287,3 +287,7 @@ onUnmounted(() => {
     </div>
   </template>
 </template>
+
+<style scoped>
+@media (max-width: 800px) { .sidebar nav { flex-wrap: wrap; } .sidebar nav a { max-width: 100%; } }
+</style>

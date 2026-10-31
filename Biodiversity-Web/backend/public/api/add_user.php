@@ -1,24 +1,21 @@
 <?php
 require_once __DIR__ . '/../../bootstrap.php';
 api(['POST']);
+
+requireRole(['admin']);
 requireCsrf();
 
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
-    respond(403, ['error' => 'Access Denied: Administrative credentials required.']);
-}
 
 $body = jsonBody();
-$name = trim($body['name'] ?? '');
-$email = strtolower(trim($body['email'] ?? ''));
-$password = $body['password'] ?? '';
-$role = trim($body['role'] ?? ''); 
-
-if (empty($name) || empty($email) || empty($password) || empty($role)) {
-    respond(400, ['error' => 'All fields are mandatory: name, email, password, and role are required.']);
+foreach (['name', 'email', 'password', 'role'] as $field) {
+    if (!is_string($body[$field] ?? null)) respond(400, ['error' => 'Name, email, password and role must be strings.']);
 }
-
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    respond(400, ['error' => 'Invalid email address format.']);
+$name = trim($body['name']);
+$email = strtolower(trim($body['email']));
+$password = $body['password'];
+$role = trim($body['role']);
+if ($name === '' || preg_match_all('/./us', $name) > 120 || strlen($email) > 254 || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 12 || strlen($password) > 72) {
+    respond(400, ['error' => 'Provide a name, valid email and a password of 12-72 bytes.']);
 }
 
 $valid_system_roles = ['conservation_officer', 'botanist', 'user'];

@@ -2,17 +2,11 @@
 require_once __DIR__ . '/../../bootstrap.php';
 api(['GET']);
 
-if (!isset($_SESSION['role'])) {
-    respond(404, ['error' => 'Authentication required. Please log in.']);
-}
-
-$current_role = $_SESSION['role'];
-if ($current_role === 'botanist') {
-    respond(403, ['error' => 'Access Denied: Botanists are restricted from accessing system utilities.']);
-}
+requireRole(['user', 'conservation_officer', 'admin']);
 
 $db = database();
-$target_id = isset($_GET['id']) ? (int)$_GET['id'] : null;
+$target_id = isset($_GET['id']) ? filter_var($_GET['id'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) : null;
+if ($target_id === false) respond(400, ['error' => 'Invalid species ID.']);
 try {
     if ($target_id) {
         $stmt = $db->prepare("SELECT * FROM species WHERE species_id = ?");

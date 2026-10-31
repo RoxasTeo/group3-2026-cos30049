@@ -1,98 +1,51 @@
-# Niah Biodiversity System
-### Group 3 · COS30049 Agile Software Development (2026)
+# Niah Biodiversity System — Web
 
-A secure, decoupled web application engineered for tracking, managing, and auditing flora species registries inside Niah National Park. This system features a reactive **Vue 3 SPA frontend** and a secure, framework-aligned **PHP / PDO database API backend**.
+Integrated Web workspace for local development. Mobile remains on its own branches. Hardware and cloud deployment are separate work.
 
----
+## Layout
 
-## System Prerequisites
+- `Biodiversity-Web/Biodiversity-Website`: Vue frontend.
+- `Biodiversity-Web/backend`: PHP API, MySQL schema and migrations.
 
-Before initiating local installation passes, ensure your machine satisfies the following environment configuration constraints:
-* **Node.js** (v18.0.0 or higher) & **npm** (v9.0.0 or higher)
-* **PHP Runtime Environment** (v8.1.0 or higher)
-* **PHP Extensions Active:** `pdo_mysql`, `session`, `json`, `filter`, `openssl`
-* **MySQL Database Server** (v8.0 or MariaDB equivalent running locally on port `3306`)
-* **Local Web Server Wrapper** (Apache or standard built-in PHP CLI wrapper)
+Includes species/photo management, knowledge search, observation review, distribution maps, CSV/PDF reports, role-based accounts, sensor monitoring, historical trends, automatic threat detection and individual plant/device tracking.
 
----
+## Run locally
 
-## Step 1: Backend Database Architecture Setup
+Prerequisites: Node matching the frontend engines requirement, PHP 8.1+ with PDO MySQL and image support, and MySQL/MariaDB using InnoDB.
 
-1. Launch your preferred MySQL management interface tool (e.g., **phpMyAdmin**).
-2. Create a clean database target entry named **`biodiversity_db`** configured with `utf8mb4_general_ci` character encoding rules.
-3. Import the system baseline schema configuration directly by executing the database blueprint script found inside **`backend/schema.sql`** via a database administrator tool. This creates the users and login-attempt tables safely without replacing pre-existing data.
-4. Create a dedicated application database user with `SELECT`, `INSERT`, `UPDATE`, and `DELETE` privileges on the authentication tables. Do **not** use the MySQL root account in deployment.
-5. Ensure your table structure uses the **InnoDB engine** natively to support proper transaction constraints and locking behavior guarantees.
+1. Create a database. For a fresh installation import `Biodiversity-Web/backend/schema.sql` into it. For existing installations back up first and apply only missing migrations 001–004; inspect existing indexes before applying 002/003. Do not import test fixtures into a real database.
+2. Copy `Biodiversity-Web/backend/.env.example` to `Biodiversity-Web/backend/.env`. Set DB credentials, `APP_ORIGIN=http://localhost:5173` and `COOKIE_SECURE=false` for local HTTP. Environment variables override this file. Keep `.env` private.
+3. Provision an officer with `php Biodiversity-Web/backend/bin/create-user.php officer@example.com "Test Officer" conservation_officer`. Enter a unique 12–72 byte password on standard input. Public registration provisions only General Users.
+4. From the repository root start PHP:
 
----
-
-## Step 2: Backend Environment Configuration Setup
-
-1. Copy `.env.example` to `.env` in your root workspace path directory.
-2. Supply your local instance configuration credentials:
-   ```ini
-   DB_HOST=127.0.0.1
-   DB_NAME=biodiversity_db
-   DB_USER=biodiversity_app
-   DB_PASSWORD=your_secure_password
-   COOKIE_SECURE=false
-   APP_ORIGIN=http://localhost:5173
-   ```
-   *Note: Set `COOKIE_SECURE=false` strictly for local HTTP development loops. Production environments require full HTTPS and `COOKIE_SECURE=true`.*
-
-3. **Provision Staff & Privileged Administration Profiles via CLI Terminal:**
-   Open a system command line prompt window, navigate to your workspace repository root, and generate your initialization accounts natively:
    ```sh
-   php backend/bin/create-user.php officer@example.com "Test Officer" conservation_officer
-   php backend/bin/create-user.php botanist@example.com "Test Botanist" botanist
-   php backend/bin/create-user.php admin@example.com "System Admin" admin
+   php -S localhost:8080 -t Biodiversity-Web/backend/public
    ```
-   *Note: Provide a unique 12-72 byte password when prompted on standard input (`STDIN`). Terminal input might be visible. Passwords will be cryptographically hashed via `BCRYPT` and never stored as plaintext.*
 
-4. **Spin Up Local Backend Testing Port Instance:**
-   Serve **only `backend/public`** as your public web root directory using the standard local PHP CLI server wrapper:
+5. In another terminal start the frontend:
+
    ```sh
-   php -S localhost:8080 -t backend/public
+   cd Biodiversity-Web/Biodiversity-Website
+   npm ci
+   npm run dev
    ```
-   *Always ensure you use matching hostnames for Vue and PHP (both `localhost`, not mixing `127.0.0.1` and `localhost`) to maintain SameSite cookie integrity.*
 
----
+Open `http://localhost:5173`. Keep frontend and PHP on the same hostname. Vite proxies to PHP port 8080; set `PHP_API_TARGET` when using another port. Never put device keys in frontend configuration.
 
-## Step 3: Frontend Interface Setup & Local Deployment
+## Validation and feature documentation
 
-Follow these sequential commands within your project repository folder root to initialize the single-page application:
+From the frontend directory run `npm run build` and `node --test tests/*.test.mjs`. Database/browser tests require explicit disposable local `*_test` settings, as documented below. They create fictional records and must never target production.
 
-### 1. Install Node Engine Distribution Packages
-Download and isolate every structural dependency tracked inside the application's configuration package definitions manifests:
-```bash
-npm install
-```
+- [Web acceptance and security](Biodiversity-Web/WEB_ACCEPTANCE.md)
+- [Observation review](Biodiversity-Web/Biodiversity-Website/OBSERVATION_REVIEW.md)
+- [Species distribution](Biodiversity-Web/Biodiversity-Website/SPECIES_DISTRIBUTION.md)
+- [Biodiversity reports](Biodiversity-Web/Biodiversity-Website/REPORTS.md)
+- [Monitoring, history and automatic alerts](Biodiversity-Web/MONITORING.md)
+- [Individual plant/device tracking](Biodiversity-Web/TRACKING.md)
+- [Deployment requirements](Biodiversity-Web/DEPLOYMENT.md)
 
-### 2. Spin Up Frontend Development Node Server
-Boot up the tracking dev server using hot-reloading pipeline watchers:
-```bash
-npm run dev
-```
+## Integration sources
 
-### 3. **Access the Application Workspace:**
-   Once the console compiles successfully, launch a clean web browser window and open the output address URL: **`http://localhost:5173`**
+Baseline: `RoxasTeo/Biodiversity-Web` (`ad9926a`), including species backend and authentication/UI integration. Reports: `bryan/biodiversity-reports` (`6ad8d48`); `bryan/next-feature` has the same tree. Additional review, maps, security, monitoring and tracking were developed in `eric/web-observation-review`. Older Web layouts are not duplicated as separate applications.
 
----
-
-## 🧑‍🤝‍🧑 Account Privilege Role Permissions Matrix
-
-The ecosystem implements strict backend structural authorization validation gates based on individual user profiles:
-
-* **System Administrator (`admin`):** Complete execution rights over everything. Possesses explicit structural visibility to modify, create, or toggle staff records inside the User Profile Management dashboard view page. Profile Management is located by clicking on Admin Profile.
-* **Conservation Officer (`conservation_officer`):** Full dataset compilation privileges. Authorized to perform record insertions, content modifications, and row deletions across the core species registry panels.
-* **Field Botanist (`botanist`):** No specialist profile. No Accesses full overview dashboards and taxonomic description sheets but is strictly blocked from making data mutations or touching web management systems.
-* **General User (`user`):** Read-only explorer profile. Can view and filter park records inside a highly restricted, secure tabular view layout canvas.
-
----
-
-## 🏁 Mandatory Acceptance Integration Checks
-
-Validate that the full integration cycle conforms to requirements by confirming the following checks pass cleanly:
-1. **CSRF Rotation:** Fetching a token before login via `/auth/csrf.php` sets up an anonymous session. Correct login rotates both the Session ID and token, and excludes password hashes from the return payload object.
-2. **Brute-Force Throttling:** Five sequential failures per normalized email within 15 minutes block further attempts across browser sessions, returning an HTTP `429 Too Many Requests` status along with a `Retry-After` header tracking the remaining delay.
-3. **Guard Real-Time Reaction:** Disabling an account or modifying their role string directly inside the database takes effect immediately on the next guarded request, blocking or re-routing them without requiring token drops.
+Application code, example configuration, migrations, documentation and guarded test tools are included. Dependencies, build output, real credentials and local database files are excluded. Local integration does not push or deploy the application.

@@ -1,11 +1,14 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { request } from '../services/authService'
+import { currentUser, request } from '../services/authService'
+import { distributionReturn } from '../services/distributionNavigation.js'
 import StatusBadge from '../components/StatusBadge.vue'
 
 const route = useRoute()
 const router = useRouter()
+const mapReturn = computed(() => distributionReturn(route.query.returnTo))
+const backTarget = computed(() => mapReturn.value || '/species')
 const dialog = ref(null)
 const error = ref('')
 const loading = ref(true)
@@ -30,7 +33,7 @@ async function remove() {
     })
     
     dialog.value.close()
-    router.push('/species') 
+    router.push(backTarget.value)
   } catch (e) { 
     error.value = e.message
     dialog.value.close() 
@@ -39,7 +42,7 @@ async function remove() {
 </script>
 
 <template>
-    <RouterLink class="back" to="/species">← Back to species</RouterLink>
+    <RouterLink class="back" :to="backTarget">← {{ mapReturn ? 'Back to species distribution' : 'Back to species' }}</RouterLink>
     
     <div v-if="loading" class="panel alert info">Loading species profile metrics...</div>
     
@@ -51,6 +54,7 @@ async function remove() {
                 <p><i>{{ record.scientific_name }}</i></p>
             </div>
             <div class="actions">
+                <RouterLink v-if="['admin', 'conservation_officer'].includes(currentUser?.role)" class="button" :to="mapReturn || { path: '/distribution', query: { species: record.species_id } }">View on map</RouterLink>
                 <button class="button delete" @click="dialog.showModal()">Delete species</button>
                 <RouterLink class="button primary" :to="`/species/${record.species_id}/edit`">Edit species</RouterLink>
             </div>

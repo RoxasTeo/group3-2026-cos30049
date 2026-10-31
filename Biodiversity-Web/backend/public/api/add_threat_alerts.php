@@ -19,6 +19,13 @@ if (
 
 $body = jsonBody();
 
+// Accept either agreed API name during device integration; never accept conflicting IDs.
+if (isset($body['species_id'], $body['plant_id']) && filter_var($body['species_id'], FILTER_VALIDATE_INT) !== filter_var($body['plant_id'], FILTER_VALIDATE_INT)) {
+    respond(400, ['error' => 'plant_id and species_id must identify the same species.']);
+}
+if (!isset($body['species_id']) && isset($body['plant_id'])) $body['species_id'] = $body['plant_id'];
+
+
 $required = [
     'species_id',
     'alert_type',

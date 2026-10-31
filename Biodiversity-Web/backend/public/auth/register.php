@@ -7,14 +7,17 @@ api(['POST']);
 requireCsrf();
 
 $data = jsonBody();
-$name = trim((string) ($data['name'] ?? ''));
-$email = strtolower(trim((string) ($data['email'] ?? '')));
-$password = (string) ($data['password'] ?? '');
+foreach (['name', 'email', 'password'] as $field) {
+    if (!is_string($data[$field] ?? null)) respond(400, ['error' => 'Name, email and password must be strings.']);
+}
+$name = trim($data['name']);
+$email = strtolower(trim($data['email']));
+$password = $data['password'];
 
 // Hierarchical default role configuration assignment rule
 $role = 'user'; 
 
-if ($name === '' || mb_strlen($name, 'UTF-8') > 120) {
+if ($name === '' || preg_match_all('/./us', $name) > 120) {
     respond(400, ['error' => 'Name is required and must be under 120 characters.']);
 }
 if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 254) {
@@ -42,6 +45,7 @@ try {
 
     respond(201, ['success' => 'Account created successfully!']);
 } catch (\Throwable $e) {
+    if ($e instanceof PDOException && ($e->errorInfo[1] ?? null) === 1062) respond(409, ['error' => 'An account with this email address already exists.']);
     error_log('Critical registration database failure: ' . $e->getMessage());
     respond(500, ['error' => 'Internal server error occurred while processing registration.']);
 }

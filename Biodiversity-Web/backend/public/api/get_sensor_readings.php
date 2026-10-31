@@ -3,41 +3,12 @@ require_once __DIR__ . '/../../bootstrap.php';
 
 api(['GET']);
 
-if (!isset($_SESSION['role'])) {
-    respond(401, [
-        'error' => 'Authentication required. Please log in.'
-    ]);
-}
-
-$currentRole = $_SESSION['role'];
-
-$allowedRoles = [
-    'admin',
-    'conservation_officer'
-];
-
-if (!in_array($currentRole, $allowedRoles, true)) {
-    respond(403, [
-        'error' => 'Access Denied: You are not authorized to access sensor readings.'
-    ]);
-}
+requireRole(['admin', 'conservation_officer']);
 
 $db = database();
 
 try {
-    $stmt = $db->query("
-        SELECT
-            reading_id,
-            species_id,
-            temperature,
-            humidity,
-            distance_cm,
-            latitude,
-            longitude,
-            recorded_at
-        FROM sensor_readings
-        ORDER BY recorded_at DESC
-    ");
+    $stmt = $db->query("SELECT t.reading_id, t.plant_id AS species_id, t.tracking_assignment_id, t.temperature, t.humidity, t.distance_cm, t.latitude, t.longitude, t.recorded_at, p.plant_tag, d.device_code FROM sensor_readings t LEFT JOIN tracking_assignments a ON a.id=t.tracking_assignment_id LEFT JOIN tracked_plants p ON p.id=a.plant_id LEFT JOIN tracking_devices d ON d.id=a.device_id ORDER BY t.recorded_at DESC, t.reading_id DESC");
 
     $readings = $stmt->fetchAll();
 

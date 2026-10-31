@@ -1,16 +1,12 @@
 <?php
-require_once __DIR__ . '/../../bootstrap.php';
+require_once __DIR__ . '/../../observations.php';
 api(['POST', 'DELETE']); 
+
+requireRole(['conservation_officer', 'admin']);
 requireCsrf();
 
-if (!isset($_SESSION['role']) || !in_array($_SESSION['role'], ['conservation_officer', 'admin'], true)) {
-    respond(403, ['error' => 'Access Denied: Insufficient write privileges.']);
-}
 
-$target_id = isset($_GET['id']) ? (int)$_GET['id'] : null;
-if (!$target_id) {
-    respond(400, ['error' => 'Missing row identifier parameter (?id=).']);
-}
+$target_id = observationId($_GET['id'] ?? null);
 
 $db = database();
 try {
@@ -23,6 +19,7 @@ try {
     
     respond(200, ['status' => 'success', 'message' => 'Record successfully cleared from system registries.']);
 } catch (\PDOException $e) {
+    if (($e->errorInfo[1] ?? null) === 1451) respond(409, ['error' => 'This species is linked to individual plants. Its tracking history must be retained; edit the species instead.']);
     error_log('Database Delete Error: ' . $e->getMessage());
     respond(500, ['error' => 'Database operation failure.']);
 }

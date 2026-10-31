@@ -1,6 +1,8 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { request } from '../services/authService'
+import MonitoringHistory from '../components/MonitoringHistory.vue'
+import ThreatDetectionRules from '../components/ThreatDetectionRules.vue'
 
 const readingsList = ref([])
 const alertsList = ref([])
@@ -9,33 +11,51 @@ const errorMessage = ref('')
 const searchQuery = ref('')
 const severityFilter = ref('all')
 
+const lastUpdated = ref(null)
+const autoRefresh = ref(true)
+let timer, controller, mounted = true
+const refreshInterval = 30000
+
 async function fetchMonitoringData() {
+  if (loading.value || !mounted) return
   loading.value = true
   errorMessage.value = ''
-
+  controller = new AbortController()
+  const timeout = setTimeout(() => controller?.abort(), 15000)
   try {
     const [readingsData, alertsData] = await Promise.all([
-      request('/api/get_sensor_readings.php'),
-      request('/api/get_threat_alerts.php')
+      request('/api/get_sensor_readings.php', { signal: controller.signal }),
+      request('/api/get_threat_alerts.php', { signal: controller.signal })
     ])
-
-    readingsList.value = Array.isArray(readingsData)
-      ? readingsData
-      : []
-
-    alertsList.value = Array.isArray(alertsData)
-      ? alertsData
-      : []
+    if (!mounted) return
+    if (!Array.isArray(readingsData) || !Array.isArray(alertsData)) throw new Error('Invalid monitoring response')
+    readingsList.value = readingsData
+    alertsList.value = alertsData
+    lastUpdated.value = new Date()
   } catch (error) {
-    console.error('Failed to load monitoring data:', error)
-    errorMessage.value =
-      'Unable to load monitoring data. Please check your connection and try again.'
+    controller?.abort()
+    if (mounted) errorMessage.value = lastUpdated.value
+      ? 'Refresh failed. Showing the last successfully loaded data; it may be out of date.'
+      : 'Unable to load monitoring data. Check your connection and try Refresh Data.'
   } finally {
-    loading.value = false
+    clearTimeout(timeout)
+    if (mounted) loading.value = false
   }
 }
-
-onMounted(fetchMonitoringData)
+function refreshIfVisible() {
+  if (autoRefresh.value && !document.hidden) fetchMonitoringData()
+}
+onMounted(() => {
+  fetchMonitoringData()
+  timer = setInterval(refreshIfVisible, refreshInterval)
+  document.addEventListener('visibilitychange', refreshIfVisible)
+})
+onBeforeUnmount(() => {
+  mounted = false
+  clearInterval(timer)
+  controller?.abort()
+  document.removeEventListener('visibilitychange', refreshIfVisible)
+})
 
 // Latest sensor reading
 const latestReading = computed(() => {
@@ -79,7 +99,7 @@ const filteredAlerts = computed(() => {
       String(alert.severity).toLowerCase() === severityFilter.value
 
     const searchableText = [
-      alert.species_id,
+      alert.species_id, alert.plant_tag, alert.device_code,
       alert.alert_type,
       alert.message,
       alert.severity,
@@ -160,6 +180,12 @@ function severityClass(severity) {
       {{ errorMessage }}
     </div>
 
+    <div class="monitoring-refresh" role="status">
+      <label><input v-model="autoRefresh" type="checkbox" @change="refreshIfVisible"> Auto-refresh every 30 seconds</label>
+      <span>{{ loading ? 'Refreshing…' : lastUpdated ? `Last updated: ${lastUpdated.toLocaleTimeString()}` : 'No successful update yet' }}</span>
+      <small>Refresh pauses while this tab is hidden.</small>
+    </div>
+
     <!-- Environmental and threat summary -->
     <section class="monitoring-summary">
       <article class="metric-card">
@@ -204,6 +230,10 @@ function severityClass(severity) {
         </div>
       </article>
     </section>
+
+    <MonitoringHistory />
+
+    <ThreatDetectionRules />
 
     <!-- Additional summary -->
     <section class="panel">
@@ -336,7 +366,7 @@ function severityClass(severity) {
               v-for="alert in filteredAlerts"
               :key="alert.alert_id"
             >
-              <td>{{ alert.species_id }}</td>
+              <td>{{ alert.species_id }}<small v-if="alert.plant_tag" style="display:block">{{ alert.plant_tag }} · {{ alert.device_code }}</small></td>
               <td>{{ alert.alert_type }}</td>
               <td>{{ alert.message }}</td>
               <td>
@@ -394,7 +424,7 @@ function severityClass(severity) {
               v-for="reading in recentReadings"
               :key="reading.reading_id"
             >
-              <td>{{ reading.species_id }}</td>
+              <td>{{ reading.species_id }}<small v-if="reading.plant_tag" style="display:block">{{ reading.plant_tag }} · {{ reading.device_code }}</small></td>
               <td>{{ formatNumber(reading.temperature) }} °C</td>
               <td>{{ formatNumber(reading.humidity) }} %</td>
               <td>{{ formatNumber(reading.distance_cm, 2) }} cm</td>
@@ -419,3 +449,11 @@ function severityClass(severity) {
     </p>
   </div>
 </template>
+
+<style scoped>
+.monitoring-refresh { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; margin-bottom: 20px; color: #456255; font-size: 14px; }
+.monitoring-refresh label { display: flex; align-items: center; gap: 8px; }
+.monitoring-refresh input { width: auto; }
+@media(max-width:900px) { .monitoring-summary { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:450px) { .monitoring-summary { grid-template-columns: 1fr; } }
+</style>
