@@ -220,7 +220,11 @@ function formatNumber(value, decimals = 1) {
 
 function formatSoilMoisture(value) {
 
-  if (value === null || value === undefined) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ''
+  ) {
     return 'Not calibrated'
   }
 
@@ -250,7 +254,11 @@ function formatSoilMoisture(value) {
         </p>
       </div>
 
-      <button class="button primary" :disabled="loading" @click="fetchMonitoringData">
+      <button
+        class="button primary"
+        :disabled="loading"
+        @click="fetchMonitoringData"
+      >
         {{ loading ? 'Refreshing...' : 'Refresh Data' }}
       </button>
 
@@ -300,6 +308,8 @@ function formatSoilMoisture(value) {
 
     <section class="monitoring-summary">
 
+      <!-- TEMPERATURE -->
+
       <article class="metric-card">
 
         <div class="metric-icon">🌡️</div>
@@ -316,6 +326,8 @@ function formatSoilMoisture(value) {
         </div>
 
       </article>
+
+      <!-- HUMIDITY -->
 
       <article class="metric-card">
 
@@ -334,6 +346,8 @@ function formatSoilMoisture(value) {
 
       </article>
 
+      <!-- SOIL MOISTURE -->
+
       <article class="metric-card">
 
         <div class="metric-icon">🌱</div>
@@ -343,15 +357,15 @@ function formatSoilMoisture(value) {
 
           <h2>
             {{
-              latestReading?.soil_moisture_percent !== null &&
-                latestReading?.soil_moisture_percent !== undefined
-                ? formatNumber(latestReading.soil_moisture_percent)
+              latestReading?.soil_moisture_raw_percent !== null &&
+              latestReading?.soil_moisture_raw_percent !== undefined
+                ? formatNumber(latestReading.soil_moisture_raw_percent)
                 : '—'
             }}
 
             <span v-if="
-              latestReading?.soil_moisture_percent !== null &&
-              latestReading?.soil_moisture_percent !== undefined
+              latestReading?.soil_moisture_raw_percent !== null &&
+              latestReading?.soil_moisture_raw_percent !== undefined
             ">
               %
             </span>
@@ -367,6 +381,8 @@ function formatSoilMoisture(value) {
         </div>
 
       </article>
+
+      <!-- TOTAL THREAT ALERTS -->
 
       <article class="metric-card">
 
@@ -457,7 +473,7 @@ function formatSoilMoisture(value) {
           <span>Soil Moisture Percentage</span>
 
           <strong>
-            {{ formatSoilMoisture(latestReading.soil_moisture_percent) }}
+            {{ formatSoilMoisture(latestReading.soil_moisture_raw_percent) }}
           </strong>
         </div>
 
@@ -503,8 +519,12 @@ function formatSoilMoisture(value) {
 
       <div class="filters">
 
-        <input v-model="searchQuery" type="search" placeholder="Search plant ID, assignment, threat or message..."
-          aria-label="Search threat alerts">
+        <input
+          v-model="searchQuery"
+          type="search"
+          placeholder="Search plant ID, assignment, threat or message..."
+          aria-label="Search threat alerts"
+        >
 
       </div>
 
@@ -527,7 +547,10 @@ function formatSoilMoisture(value) {
 
           <tbody>
 
-            <tr v-for="alert in filteredAlerts" :key="alert.alert_id">
+            <tr
+              v-for="alert in filteredAlerts"
+              :key="alert.alert_id"
+            >
 
               <td>{{ alert.alert_id }}</td>
 
@@ -604,7 +627,10 @@ function formatSoilMoisture(value) {
 
           <tbody>
 
-            <tr v-for="reading in recentReadings" :key="reading.reading_id">
+            <tr
+              v-for="reading in recentReadings"
+              :key="reading.reading_id"
+            >
 
               <td>{{ reading.reading_id }}</td>
 
@@ -627,7 +653,7 @@ function formatSoilMoisture(value) {
               </td>
 
               <td>
-                {{ formatSoilMoisture(reading.soil_moisture_percent) }}
+                {{ formatSoilMoisture(reading.soil_moisture_raw_percent) }}
               </td>
 
               <td>
@@ -651,6 +677,7 @@ function formatSoilMoisture(value) {
       </div>
 
     </section>
+
     <p v-if="loading" class="loading-message">
       Loading monitoring data...
     </p>
@@ -659,6 +686,15 @@ function formatSoilMoisture(value) {
 </template>
 
 <style scoped>
+.page-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin: 0 0 24px;
+  padding: 8px 4px 16px;
+}
+
 .monitoring-refresh {
   display: flex;
   align-items: center;
@@ -698,6 +734,16 @@ function formatSoilMoisture(value) {
   margin: 0;
 }
 
+.panel {
+  padding: 24px 20px 20px;
+  box-sizing: border-box;
+  margin-bottom: 24px;
+}
+
+.panel > .section-heading {
+  padding: 0 0 16px;
+}
+
 @media (max-width: 900px) {
   .monitoring-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -714,6 +760,11 @@ function formatSoilMoisture(value) {
     align-items: flex-start;
     flex-direction: column;
     gap: 6px;
+  }
+
+  .page-heading {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

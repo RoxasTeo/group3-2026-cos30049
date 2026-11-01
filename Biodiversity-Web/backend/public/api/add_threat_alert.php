@@ -3,212 +3,149 @@ require_once __DIR__ . '/../../bootstrap.php';
 
 api(['POST']);
 
-// ==========================================
-// AUTHENTICATE ESP32 DEVICE
-// ==========================================
-
-$deviceKey = getenv('IOT_DEVICE_API_KEY');
+// Authenticate ESP32 device
+$expectedKey = getenv('IOT_DEVICE_API_KEY');
 $providedKey = $_SERVER['HTTP_X_DEVICE_KEY'] ?? '';
 
-if (
-    !is_string($deviceKey) ||
-    $deviceKey === '' ||
-    !is_string($providedKey) ||
-    !hash_equals($deviceKey, $providedKey)
-) {
+if (!$expectedKey || !hash_equals($expectedKey, $providedKey)) {
     respond(401, [
-        'error' => 'Unauthorized device.'
+        'error' => 'Invalid device API key.'
     ]);
 }
 
-// ==========================================
-// READ JSON REQUEST
-// ==========================================
+$data = jsonBody();
 
-$body = jsonBody();
+$plantId = filter_var(
+    $data['plant_id'] ?? null,
+    FILTER_VALIDATE_INT
+);
 
-// ==========================================
-// VALIDATE PLANT ID
-// ==========================================
-
-if (
-    !array_key_exists('plant_id', $body) ||
-    filter_var($body['plant_id'], FILTER_VALIDATE_INT) === false
-) {
+if (!$plantId || $plantId <= 0) {
     respond(400, [
-        'error' => 'Missing or invalid field: plant_id'
+        'error' => 'A valid plant_id is required.'
     ]);
 }
 
-$plantId = (int) $body['plant_id'];
+// Validate alert type
+$alertType = trim($data['alert_type'] ?? '');
 
-if ($plantId < 1) {
+if ($alertType === '' || strlen($alertType) > 30) {
     respond(400, [
-        'error' => 'Invalid plant_id.'
+        'error' => 'Alert type is required and must not exceed 30 characters.'
     ]);
 }
 
-// ==========================================
-// VALIDATE TRACKING ASSIGNMENT ID
-// ==========================================
+// Validate alert message
+$message = trim($data['message'] ?? '');
 
-$trackingAssignmentId = null;
+if ($message === '' || strlen($message) > 255) {
+    respond(400, [
+        'error' => 'Alert message is required and must not exceed 255 characters.'
+    ]);
+}
 
-if (
-    array_key_exists('tracking_assignment_id', $body) &&
-    $body['tracking_assignment_id'] !== null
-) {
-    $trackingAssignmentId = filter_var(
-        $body['tracking_assignment_id'],
+// Optional tracking assignment ID
+$assignmentId = $data['tracking_assignment_id'] ?? null;
+
+if ($assignmentId !== null) {
+    $assignmentId = filter_var(
+        $assignmentId,
         FILTER_VALIDATE_INT
     );
 
-    if (
-        $trackingAssignmentId === false ||
-        $trackingAssignmentId < 1
-    ) {
+    if ($assignmentId === false || $assignmentId <= 0) {
         respond(400, [
             'error' => 'Invalid tracking_assignment_id.'
         ]);
     }
 }
 
-// ==========================================
-// VALIDATE ALERT TYPE AND MESSAGE
-// ==========================================
-
-$required = [
-    'alert_type',
-    'message'
-];
-
-foreach ($required as $field) {
-
-    if (
-        !array_key_exists($field, $body) ||
-        !is_string($body[$field]) ||
-        trim($body[$field]) === ''
-    ) {
-        respond(400, [
-            'error' => "Missing or invalid field: $field"
-        ]);
-    }
-}
-
-// ==========================================
-// VALIDATE AND SANITIZE INPUT
-// ==========================================
-
-$alertType = trim($body['alert_type']);
-$message = trim($body['message']);
-
-if (
-    strlen($alertType) > 30 ||
-    strlen($message) > 255
-) {
-    respond(400, [
-        'error' => 'Alert values are invalid or too long.'
-    ]);
-}
-
-// ==========================================
-// DATABASE OPERATIONS
-// ==========================================
-
-$db = database();
-
 try {
+    $pdo = database();
 
-    // ======================================
-    // CHECK WHETHER PLANT EXISTS
-    // ======================================
-
-    $checkPlant = $db->prepare(
-        'SELECT id
-         FROM plants
-         WHERE id = :plant_id'
+    // Get registered coordinates from tracked_plants
+    $checkPlant = $pdo->prepare(
+        "SELECT latitude, longitude
+         FROM tracked_plants
+         WHERE id = :plant_id"
     );
 
     $checkPlant->execute([
         ':plant_id' => $plantId
     ]);
 
-    if (!$checkPlant->fetch()) {
+    $plant = $checkPlant->fetch(PDO::FETCH_ASSOC);
+
+    if (!$plant) {
         respond(404, [
-            'error' => 'Plant not found.'
+            'error' => 'Tracked plant not found.'
         ]);
     }
 
-    // ======================================
-    // CHECK TRACKING ASSIGNMENT
-    // ======================================
+    $latitude = $plant['latitude'];
+    $longitude = $plant['longitude'];
 
-    if ($trackingAssignmentId !== null) {
-
-        $checkAssignment = $db->prepare(
-            'SELECT id
+    // Verify that the assignment belongs to this plant
+    if ($assignmentId !== null) {
+        $checkAssignment = $pdo->prepare(
+            "SELECT id
              FROM tracking_assignments
              WHERE id = :assignment_id
                AND plant_id = :plant_id
-               AND ended_at IS NULL'
+               AND ended_at IS NULL"
         );
 
         $checkAssignment->execute([
-            ':assignment_id' => $trackingAssignmentId,
+            ':assignment_id' => $assignmentId,
             ':plant_id' => $plantId
         ]);
 
-        if (!$checkAssignment->fetch()) {
+        if (!$checkAssignment->fetch(PDO::FETCH_ASSOC)) {
             respond(400, [
-                'error' => 'Invalid or inactive tracking assignment for this plant.'
+                'error' => 'Tracking assignment does not belong to this plant or is inactive.'
             ]);
         }
     }
 
-    // ======================================
-    // INSERT THREAT ALERT
-    // ======================================
-
-    $sql = "INSERT INTO threat_alerts (
-                tracking_assignment_id,
-                plant_id,
-                alert_type,
-                message
-            ) VALUES (
-                :tracking_assignment_id,
-                :plant_id,
-                :alert_type,
-                :message
-            )";
-
-    $stmt = $db->prepare($sql);
+    // Insert threat alert
+    $stmt = $pdo->prepare(
+        "INSERT INTO threat_alerts (
+            tracking_assignment_id,
+            plant_id,
+            alert_type,
+            message,
+            latitude,
+            longitude
+        ) VALUES (
+            :assignment_id,
+            :plant_id,
+            :alert_type,
+            :message,
+            :latitude,
+            :longitude
+        )"
+    );
 
     $stmt->execute([
-        ':tracking_assignment_id' => $trackingAssignmentId,
+        ':assignment_id' => $assignmentId,
         ':plant_id' => $plantId,
         ':alert_type' => $alertType,
-        ':message' => $message
+        ':message' => $message,
+        ':latitude' => $latitude,
+        ':longitude' => $longitude
     ]);
 
-    // ======================================
-    // SUCCESS RESPONSE
-    // ======================================
-
     respond(201, [
-        'status' => 'success',
-        'message' => 'Threat alert successfully recorded.',
-        'alert_id' => (int) $db->lastInsertId(),
+        'message' => 'Threat alert saved successfully.',
+        'alert_id' => $pdo->lastInsertId(),
         'plant_id' => $plantId,
-        'tracking_assignment_id' => $trackingAssignmentId,
         'alert_type' => $alertType,
-        'alert_message' => $message
+        'latitude' => $latitude,
+        'longitude' => $longitude
     ]);
 
 } catch (PDOException $e) {
-
-    error_log(
-        'Threat Alert Insert Error: ' . $e->getMessage()
-    );
+    error_log('Threat Alert Insert Error: ' . $e->getMessage());
 
     respond(500, [
         'error' => 'Database storage failure.'

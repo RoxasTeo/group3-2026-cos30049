@@ -83,9 +83,10 @@ CREATE TABLE IF NOT EXISTS sensor_readings (
     plant_id INT NOT NULL,
     temperature DECIMAL(5,2) NOT NULL,
     humidity DECIMAL(5,2) NOT NULL,
-    distance_cm DECIMAL(8,2) NOT NULL,
-    latitude DECIMAL(10,7) NOT NULL,
-    longitude DECIMAL(10,7) NOT NULL,
+    soil_moisture_raw INT NULL,
+    soil_moisture_raw_percent DECIMAL(5,2) NULL,
+    latitude DECIMAL(10,7) NULL,
+    longitude DECIMAL(10,7) NULL,
     recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     KEY sensor_recorded_at (recorded_at),
     KEY sensor_plant_recorded_at (plant_id, recorded_at)
@@ -98,10 +99,9 @@ CREATE TABLE IF NOT EXISTS threat_alerts (
     FOREIGN KEY (tracking_assignment_id) REFERENCES tracking_assignments(id) ON DELETE RESTRICT,
     plant_id INT NOT NULL,
     alert_type VARCHAR(30) NOT NULL,
-    severity VARCHAR(20) NOT NULL,
     message VARCHAR(255) NOT NULL,
-    latitude DECIMAL(10,7) NOT NULL,
-    longitude DECIMAL(10,7) NOT NULL,
+    latitude DECIMAL(10,7) NULL,
+    longitude DECIMAL(10,7) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     KEY threat_plant_type_created (plant_id, alert_type, created_at)
 ) ENGINE=InnoDB;

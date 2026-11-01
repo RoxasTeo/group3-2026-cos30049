@@ -3,266 +3,195 @@ require_once __DIR__ . '/../../bootstrap.php';
 
 api(['POST']);
 
-// ==========================================
-// AUTHENTICATE ESP32 DEVICE
-// ==========================================
-
-$deviceKey = getenv('IOT_DEVICE_API_KEY');
+// Authenticate ESP32 device
+$expectedKey = getenv('IOT_DEVICE_API_KEY');
 $providedKey = $_SERVER['HTTP_X_DEVICE_KEY'] ?? '';
 
-if (
-    !is_string($deviceKey) ||
-    $deviceKey === '' ||
-    !is_string($providedKey) ||
-    !hash_equals($deviceKey, $providedKey)
-) {
+if (!$expectedKey || !hash_equals($expectedKey, $providedKey)) {
     respond(401, [
-        'error' => 'Unauthorized device.'
+        'error' => 'Invalid device API key.'
     ]);
 }
 
-// ==========================================
-// READ JSON REQUEST BODY
-// ==========================================
-
-$body = jsonBody();
-
-// ==========================================
-// VALIDATE REQUIRED FIELDS
-// ==========================================
-
-$required = [
-    'plant_id',
-    'temperature',
-    'humidity'
-];
-
-foreach ($required as $field) {
-
-    if (
-        !array_key_exists($field, $body) ||
-        !is_numeric($body[$field])
-    ) {
-        respond(400, [
-            'error' => "Missing or invalid field: $field"
-        ]);
-    }
-}
-
-// ==========================================
-// VALIDATE PLANT ID
-// ==========================================
+$data = jsonBody();
 
 $plantId = filter_var(
-    $body['plant_id'],
+    $data['plant_id'] ?? null,
     FILTER_VALIDATE_INT
 );
 
-if ($plantId === false || $plantId < 1) {
+if (!$plantId || $plantId <= 0) {
     respond(400, [
-        'error' => 'Invalid plant_id.'
+        'error' => 'A valid plant_id is required.'
     ]);
 }
 
-// ==========================================
-// VALIDATE TRACKING ASSIGNMENT ID
-// ==========================================
-
-$trackingAssignmentId = null;
-
+// Validate required sensor values
 if (
-    array_key_exists('tracking_assignment_id', $body) &&
-    $body['tracking_assignment_id'] !== null
-) {
-    $trackingAssignmentId = filter_var(
-        $body['tracking_assignment_id'],
-        FILTER_VALIDATE_INT
-    );
-
-    if (
-        $trackingAssignmentId === false ||
-        $trackingAssignmentId < 1
-    ) {
-        respond(400, [
-            'error' => 'Invalid tracking_assignment_id.'
-        ]);
-    }
-}
-
-// ==========================================
-// VALIDATE TEMPERATURE AND HUMIDITY
-// ==========================================
-
-$temperature = (float) $body['temperature'];
-$humidity = (float) $body['humidity'];
-
-if (
-    $temperature < -50 ||
-    $temperature > 100 ||
-    $humidity < 0 ||
-    $humidity > 100
+    !isset($data['temperature']) ||
+    !is_numeric($data['temperature']) ||
+    !isset($data['humidity']) ||
+    !is_numeric($data['humidity'])
 ) {
     respond(400, [
-        'error' => 'Invalid temperature or humidity value.'
+        'error' => 'Temperature and humidity are required and must be numeric.'
     ]);
 }
 
-// ==========================================
-// VALIDATE SOIL MOISTURE RAW
-// ==========================================
+$temperature = (float) $data['temperature'];
+$humidity = (float) $data['humidity'];
 
-$soilMoistureRaw = null;
+if ($temperature < -50 || $temperature > 100) {
+    respond(400, [
+        'error' => 'Temperature must be between -50 and 100.'
+    ]);
+}
 
-if (
-    array_key_exists('soil_moisture_raw', $body) &&
-    $body['soil_moisture_raw'] !== null
-) {
-    $soilMoistureRaw = filter_var(
-        $body['soil_moisture_raw'],
-        FILTER_VALIDATE_INT
-    );
+if ($humidity < 0 || $humidity > 100) {
+    respond(400, [
+        'error' => 'Humidity must be between 0 and 100.'
+    ]);
+}
 
-    if (
-        $soilMoistureRaw === false ||
-        $soilMoistureRaw < 0 ||
-        $soilMoistureRaw > 4095
-    ) {
+// Validate optional soil moisture raw value
+$soilRaw = $data['soil_moisture_raw'] ?? null;
+
+if ($soilRaw !== null) {
+    $soilRaw = filter_var($soilRaw, FILTER_VALIDATE_INT);
+
+    if ($soilRaw === false || $soilRaw < 0 || $soilRaw > 4095) {
         respond(400, [
-            'error' => 'Invalid soil_moisture_raw value.'
+            'error' => 'Soil moisture raw value must be between 0 and 4095.'
         ]);
     }
 }
 
-// ==========================================
-// VALIDATE SOIL MOISTURE PERCENTAGE
-// ==========================================
+// Validate optional soil moisture percentage
+$soilPercent = $data['soil_moisture_raw_percent'] ?? null;
 
-$soilMoisturePercent = null;
-
-if (
-    array_key_exists('soil_moisture_percent', $body) &&
-    $body['soil_moisture_percent'] !== null
-) {
-    if (!is_numeric($body['soil_moisture_percent'])) {
+if ($soilPercent !== null) {
+    if (!is_numeric($soilPercent)) {
         respond(400, [
-            'error' => 'Invalid soil_moisture_percent value.'
+            'error' => 'Soil moisture percentage must be numeric.'
         ]);
     }
 
-    $soilMoisturePercent = (float) $body['soil_moisture_percent'];
+    $soilPercent = (float) $soilPercent;
 
-    if (
-        $soilMoisturePercent < 0 ||
-        $soilMoisturePercent > 100
-    ) {
+    if ($soilPercent < 0 || $soilPercent > 100) {
         respond(400, [
             'error' => 'Soil moisture percentage must be between 0 and 100.'
         ]);
     }
 }
 
-// ==========================================
-// DATABASE OPERATIONS
-// ==========================================
+// Optional tracking assignment ID
+$assignmentId = $data['tracking_assignment_id'] ?? null;
 
-$db = database();
+if ($assignmentId !== null) {
+    $assignmentId = filter_var(
+        $assignmentId,
+        FILTER_VALIDATE_INT
+    );
+
+    if ($assignmentId === false || $assignmentId <= 0) {
+        respond(400, [
+            'error' => 'Invalid tracking_assignment_id.'
+        ]);
+    }
+}
 
 try {
+    $pdo = database();
 
-    // ======================================
-    // CHECK WHETHER PLANT EXISTS
-    // ======================================
-
-    $checkPlant = $db->prepare(
-        'SELECT id
-         FROM plants
-         WHERE id = :plant_id'
+    // Get the registered coordinates from tracked_plants
+    $checkPlant = $pdo->prepare(
+        "SELECT latitude, longitude
+         FROM tracked_plants
+         WHERE id = :plant_id"
     );
 
     $checkPlant->execute([
         ':plant_id' => $plantId
     ]);
 
-    if (!$checkPlant->fetch()) {
+    $plant = $checkPlant->fetch(PDO::FETCH_ASSOC);
+
+    if (!$plant) {
         respond(404, [
-            'error' => 'Plant not found.'
+            'error' => 'Tracked plant not found.'
         ]);
     }
 
-    // ======================================
-    // CHECK TRACKING ASSIGNMENT
-    // ======================================
+    $latitude = $plant['latitude'];
+    $longitude = $plant['longitude'];
 
-    if ($trackingAssignmentId !== null) {
-
-        $checkAssignment = $db->prepare(
-            'SELECT id
+    // Verify that the assignment belongs to this plant
+    if ($assignmentId !== null) {
+        $checkAssignment = $pdo->prepare(
+            "SELECT id
              FROM tracking_assignments
              WHERE id = :assignment_id
                AND plant_id = :plant_id
-               AND ended_at IS NULL'
+               AND ended_at IS NULL"
         );
 
         $checkAssignment->execute([
-            ':assignment_id' => $trackingAssignmentId,
+            ':assignment_id' => $assignmentId,
             ':plant_id' => $plantId
         ]);
 
-        if (!$checkAssignment->fetch()) {
+        if (!$checkAssignment->fetch(PDO::FETCH_ASSOC)) {
             respond(400, [
-                'error' => 'Invalid or inactive tracking assignment for this plant.'
+                'error' => 'Tracking assignment does not belong to this plant or is inactive.'
             ]);
         }
     }
 
-    // ======================================
-    // INSERT SENSOR READING
-    // ======================================
-
-    $sql = "INSERT INTO sensor_readings (
-                tracking_assignment_id,
-                plant_id,
-                temperature,
-                humidity,
-                soil_moisture_raw,
-                soil_moisture_percent
-            ) VALUES (
-                :tracking_assignment_id,
-                :plant_id,
-                :temperature,
-                :humidity,
-                :soil_moisture_raw,
-                :soil_moisture_percent
-            )";
-
-    $stmt = $db->prepare($sql);
+    // Insert sensor reading
+    $stmt = $pdo->prepare(
+        "INSERT INTO sensor_readings (
+            tracking_assignment_id,
+            plant_id,
+            temperature,
+            humidity,
+            soil_moisture_raw,
+            soil_moisture_raw_percent,
+            latitude,
+            longitude
+        ) VALUES (
+            :assignment_id,
+            :plant_id,
+            :temperature,
+            :humidity,
+            :soil_raw,
+            :soil_percent,
+            :latitude,
+            :longitude
+        )"
+    );
 
     $stmt->execute([
-        ':tracking_assignment_id' => $trackingAssignmentId,
+        ':assignment_id' => $assignmentId,
         ':plant_id' => $plantId,
         ':temperature' => $temperature,
         ':humidity' => $humidity,
-        ':soil_moisture_raw' => $soilMoistureRaw,
-        ':soil_moisture_percent' => $soilMoisturePercent
+        ':soil_raw' => $soilRaw,
+        ':soil_percent' => $soilPercent,
+        ':latitude' => $latitude,
+        ':longitude' => $longitude
     ]);
 
-    // ======================================
-    // SUCCESS RESPONSE
-    // ======================================
-
     respond(201, [
-        'status' => 'success',
-        'message' => 'Sensor reading successfully recorded.',
-        'reading_id' => (int) $db->lastInsertId(),
+        'message' => 'Sensor reading saved successfully.',
+        'reading_id' => $pdo->lastInsertId(),
         'plant_id' => $plantId,
-        'tracking_assignment_id' => $trackingAssignmentId
+        'latitude' => $latitude,
+        'longitude' => $longitude
     ]);
 
 } catch (PDOException $e) {
-
-    error_log(
-        'Sensor Reading Insert Error: ' . $e->getMessage()
-    );
+    error_log('Sensor Reading Insert Error: ' . $e->getMessage());
 
     respond(500, [
         'error' => 'Database storage failure.'
