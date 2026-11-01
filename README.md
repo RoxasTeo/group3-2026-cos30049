@@ -21,7 +21,7 @@ Prerequisites: Node matching the frontend engines requirement, PHP 8.1+ with PDO
 4. From the repository root start PHP:
 
    ```sh
-   php -S localhost:8080 -t Biodiversity-Web/backend/public
+   php -S 0.0.0.0:8080 -t Biodiversity-Web/backend/public
    ```
 
 5. In another terminal start the frontend:
