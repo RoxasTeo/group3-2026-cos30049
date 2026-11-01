@@ -19,6 +19,7 @@ if (
 
 $body = jsonBody();
 
+<<<<<<< Updated upstream:Biodiversity-Web/backend/public/api/add_threat_alerts.php
 // Accept either agreed API name during device integration; never accept conflicting IDs.
 if (isset($body['species_id'], $body['plant_id']) && filter_var($body['species_id'], FILTER_VALIDATE_INT) !== filter_var($body['plant_id'], FILTER_VALIDATE_INT)) {
     respond(400, ['error' => 'plant_id and species_id must identify the same species.']);
@@ -26,8 +27,20 @@ if (isset($body['species_id'], $body['plant_id']) && filter_var($body['species_i
 if (!isset($body['species_id']) && isset($body['plant_id'])) $body['species_id'] = $body['plant_id'];
 
 
+=======
+// Validate species_id separately because it is a JSON number.
+if (
+    !array_key_exists('species_id', $body) ||
+    filter_var($body['species_id'], FILTER_VALIDATE_INT) === false
+) {
+    respond(400, [
+        'error' => 'Missing or invalid field: species_id'
+    ]);
+}
+
+// Validate alert_type and message as strings.
+>>>>>>> Stashed changes:Biodiversity-Web/backend/public/api/add_threat_alert.php
 $required = [
-    'species_id',
     'alert_type',
     'severity',
     'message',
@@ -43,10 +56,15 @@ foreach ($required as $field) {
     }
 }
 
+<<<<<<< Updated upstream:Biodiversity-Web/backend/public/api/add_threat_alerts.php
 $speciesId = filter_var(
     $body['species_id'],
     FILTER_VALIDATE_INT
 );
+=======
+// Validate and sanitize input.
+$speciesId = (int) $body['species_id'];
+>>>>>>> Stashed changes:Biodiversity-Web/backend/public/api/add_threat_alert.php
 
 $type = $body['alert_type'];
 $severity = $body['severity'];
@@ -66,7 +84,6 @@ $allowedSeverities = [
 ];
 
 if (
-    $speciesId === false ||
     $speciesId < 1 ||
     !is_string($type) ||
     !in_array($type, $allowedTypes, true) ||
@@ -154,7 +171,12 @@ try {
         'alert_id' => $db->lastInsertId()
     ]);
 
+<<<<<<< Updated upstream:Biodiversity-Web/backend/public/api/add_threat_alerts.php
 } catch (\PDOException $e) {
+=======
+} catch (PDOException $e) {
+
+>>>>>>> Stashed changes:Biodiversity-Web/backend/public/api/add_threat_alert.php
     error_log(
         'Threat Alert Insert Error: ' . $e->getMessage()
     );

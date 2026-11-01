@@ -7,6 +7,15 @@ api(['POST']);
 $deviceKey = getenv('IOT_DEVICE_API_KEY');
 $providedKey = $_SERVER['HTTP_X_DEVICE_KEY'] ?? '';
 
+error_log("Device key configured: " . ($deviceKey !== false && $deviceKey !== '' ? "YES" : "NO"));
+error_log("Device header received: " . ($providedKey !== '' ? "YES" : "NO"));
+error_log("Device key matches: " . (
+    is_string($deviceKey) &&
+    $deviceKey !== '' &&
+    hash_equals($deviceKey, $providedKey)
+    ? "YES" : "NO"
+));
+
 if (
     !is_string($deviceKey) ||
     $deviceKey === '' ||
@@ -40,7 +49,16 @@ foreach ($required as $field) {
     }
 }
 
+<<<<<<< Updated upstream
 $plantId = filter_var($body['plant_id'], FILTER_VALIDATE_INT);
+=======
+// Validate and convert required values.
+$speciesId = filter_var(
+    $body['species_id'],
+    FILTER_VALIDATE_INT
+);
+
+>>>>>>> Stashed changes
 $temperature = (float) $body['temperature'];
 $humidity = (float) $body['humidity'];
 $distance = (float) $body['distance_cm'];
@@ -60,15 +78,75 @@ if (
     $latitude < -90 || $latitude > 90 ||
     $longitude < -180 || $longitude > 180
 ) {
+<<<<<<< Updated upstream
     respond(400, ['error' => 'Sensor values are outside valid ranges.']);
+=======
+    respond(400, [
+        'error' => 'Sensor values are outside valid ranges.'
+    ]);
 }
 
+// Optional soil moisture readings.
+$soilMoistureRaw = null;
+$soilMoisturePercent = null;
+
+// Validate raw ADC value.
+if (array_key_exists('soil_moisture_raw', $body)) {
+    if (
+        $body['soil_moisture_raw'] === null ||
+        !is_numeric($body['soil_moisture_raw']) ||
+        !is_finite((float) $body['soil_moisture_raw']) ||
+        (float) $body['soil_moisture_raw'] < 0 ||
+        (float) $body['soil_moisture_raw'] > 4095 ||
+        floor((float) $body['soil_moisture_raw']) !==
+            (float) $body['soil_moisture_raw']
+    ) {
+        respond(400, [
+            'error' => 'Invalid soil_moisture_raw value.'
+        ]);
+    }
+
+    $soilMoistureRaw = (int) $body['soil_moisture_raw'];
+}
+
+// Validate calibrated soil moisture percentage.
+// NULL is allowed when the sensor has not been calibrated.
+if (
+    array_key_exists('soil_moisture_percent', $body) &&
+    $body['soil_moisture_percent'] !== null
+) {
+    if (!is_numeric($body['soil_moisture_percent'])) {
+        respond(400, [
+            'error' => 'Invalid soil_moisture_percent value.'
+        ]);
+    }
+
+    $soilMoisturePercent =
+        (float) $body['soil_moisture_percent'];
+
+    if (
+        !is_finite($soilMoisturePercent) ||
+        $soilMoisturePercent < 0 ||
+        $soilMoisturePercent > 100
+    ) {
+        respond(400, [
+            'error' => 'Soil moisture percentage must be between 0 and 100.'
+        ]);
+    }
+>>>>>>> Stashed changes
+}
+
+// Connect to the database.
 $db = database();
 
 $config = threatConfiguration();
 try {
+<<<<<<< Updated upstream
     $db->beginTransaction();
     // Ensure that the referenced species exists.
+=======
+    // Retrieve the species details.
+>>>>>>> Stashed changes
     $check = $db->prepare(
         'SELECT species_id FROM species WHERE species_id = :plant_id FOR UPDATE'
     );
