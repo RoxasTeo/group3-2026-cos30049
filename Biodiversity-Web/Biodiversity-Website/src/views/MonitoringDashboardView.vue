@@ -7,7 +7,7 @@ const alertsList = ref([])
 const loading = ref(false)
 const errorMessage = ref('')
 const searchQuery = ref('')
-const severityFilter = ref('all')
+const alertTypeFilter = ref('all')
 
 async function fetchMonitoringData() {
   loading.value = true
@@ -19,12 +19,13 @@ async function fetchMonitoringData() {
       request('/api/get_threat_alerts.php')
     ])
 
-    readingsList.value = Array.isArray(readingsData)
-      ? readingsData
+    // Match the response structure from the PHP GET APIs.
+    readingsList.value = Array.isArray(readingsData?.readings)
+      ? readingsData.readings
       : []
 
-    alertsList.value = Array.isArray(alertsData)
-      ? alertsData
+    alertsList.value = Array.isArray(alertsData?.alerts)
+      ? alertsData.alerts
       : []
   } catch (error) {
     console.error('Failed to load monitoring data:', error)
@@ -37,70 +38,67 @@ async function fetchMonitoringData() {
 
 onMounted(fetchMonitoringData)
 
-// Latest sensor reading
-const latestReading = computed(() => {
-  if (!readingsList.value.length) return null
-
-  return [...readingsList.value].sort(
+// Sort newest readings first.
+function sortByDate(items, dateField) {
+  return [...items].sort(
     (a, b) =>
-      new Date(b.recorded_at.replace(' ', 'T')) -
-      new Date(a.recorded_at.replace(' ', 'T'))
-  )[0]
+      new Date(String(b[dateField] ?? '').replace(' ', 'T')).getTime() -
+      new Date(String(a[dateField] ?? '').replace(' ', 'T')).getTime()
+  )
+}
+
+// Latest sensor reading.
+const latestReading = computed(() => {
+  const sorted = sortByDate(readingsList.value, 'recorded_at')
+  return sorted[0] ?? null
 })
 
-// Alert summary
+// Recent sensor history.
+const recentReadings = computed(() =>
+  sortByDate(readingsList.value, 'recorded_at').slice(0, 10)
+)
+
+// Alert summary.
 const totalAlerts = computed(() => alertsList.value.length)
 
-const criticalAlerts = computed(() =>
-  alertsList.value.filter(
-    alert => String(alert.severity).toLowerCase() === 'critical'
-  ).length
+const alertTypeCounts = computed(() => {
+  const counts = {}
+
+  for (const alert of alertsList.value) {
+    const type = alert.alert_type || 'Unknown'
+    counts[type] = (counts[type] || 0) + 1
+  }
+
+  return counts
+})
+
+const alertTypes = computed(() =>
+  Object.keys(alertTypeCounts.value).sort()
 )
 
-const warningAlerts = computed(() =>
-  alertsList.value.filter(
-    alert => String(alert.severity).toLowerCase() === 'warning'
-  ).length
-)
-
-const infoAlerts = computed(() =>
-  alertsList.value.filter(
-    alert => String(alert.severity).toLowerCase() === 'info'
-  ).length
-)
-
-// Search and severity filtering
+// Filter threat alerts by search text and alert type.
 const filteredAlerts = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
 
-  return alertsList.value.filter(alert => {
-    const matchesSeverity =
-      severityFilter.value === 'all' ||
-      String(alert.severity).toLowerCase() === severityFilter.value
+  return sortByDate(alertsList.value, 'created_at').filter(alert => {
+    const matchesType =
+      alertTypeFilter.value === 'all' ||
+      alert.alert_type === alertTypeFilter.value
 
     const searchableText = [
       alert.species_id,
+      alert.common_name,
+      alert.scientific_name,
       alert.alert_type,
-      alert.message,
-      alert.severity,
-      alert.latitude,
-      alert.longitude
-    ].join(' ').toLowerCase()
+      alert.message
+    ]
+      .map(value => String(value ?? ''))
+      .join(' ')
+      .toLowerCase()
 
-    return matchesSeverity && searchableText.includes(query)
+    return matchesType && searchableText.includes(query)
   })
 })
-
-// Display newest readings first
-const recentReadings = computed(() =>
-  [...readingsList.value]
-    .sort(
-      (a, b) =>
-        new Date(b.recorded_at.replace(' ', 'T')) -
-        new Date(a.recorded_at.replace(' ', 'T'))
-    )
-    .slice(0, 10)
-)
 
 function formatDate(value) {
   if (!value) return '—'
@@ -122,22 +120,17 @@ function formatNumber(value, decimals = 1) {
   return Number.isFinite(number) ? number.toFixed(decimals) : '—'
 }
 
-function severityClass(severity) {
-  switch (String(severity ?? '').toLowerCase()) {
-    case 'critical':
-      return 'severity-critical'
-    case 'warning':
-      return 'severity-warning'
-    case 'info':
-      return 'severity-info'
-    default:
-      return ''
-  }
+function displaySpecies(readingOrAlert) {
+  return (
+    readingOrAlert.common_name ||
+    `Species ID: ${readingOrAlert.species_id ?? '—'}`
+  )
 }
 </script>
 
 <template>
   <div class="monitoring-dashboard">
+    <!-- Page heading -->
     <div class="page-heading">
       <div>
         <p class="eyebrow">NIAH BIODIVERSITY SYSTEM</p>
@@ -147,15 +140,12 @@ function severityClass(severity) {
         </p>
       </div>
 
-      <button
-        class="button primary"
-        :disabled="loading"
-        @click="fetchMonitoringData"
-      >
+      <button class="button primary" :disabled="loading" @click="fetchMonitoringData">
         {{ loading ? 'Refreshing...' : 'Refresh Data' }}
       </button>
     </div>
 
+    <!-- Error message -->
     <div v-if="errorMessage" class="alert error">
       {{ errorMessage }}
     </div>
@@ -187,52 +177,49 @@ function severityClass(severity) {
       </article>
 
       <article class="metric-card">
-        <div class="metric-icon">🛡️</div>
+        <div class="metric-icon">🌱</div>
         <div>
-          <p>Total Threat Alerts</p>
-          <h2>{{ totalAlerts }}</h2>
-          <small>Recorded alerts</small>
+          <p>Soil Moisture</p>
+          <h2>
+            {{ formatNumber(latestReading?.soil_moisture_percent) }}
+            <span>%</span>
+          </h2>
+          <small>Latest calibrated reading</small>
         </div>
       </article>
 
       <article class="metric-card">
         <div class="metric-icon">⚠️</div>
         <div>
-          <p>Critical Alerts</p>
-          <h2>{{ criticalAlerts }}</h2>
-          <small>Alerts marked critical</small>
+          <p>Total Threat Alerts</p>
+          <h2>{{ totalAlerts }}</h2>
+          <small>Recorded alerts</small>
         </div>
       </article>
     </section>
 
-    <!-- Additional summary -->
+    <!-- Threat overview -->
     <section class="panel">
       <div class="section-heading">
         <div>
           <h2>Threat Overview</h2>
-          <p>Recorded alerts grouped by severity.</p>
+          <p>Recorded alerts grouped by threat type.</p>
         </div>
       </div>
 
-      <div class="threat-overview">
-        <div class="threat-overview-item">
-          <span class="status-pill severity-critical">Critical</span>
-          <strong>{{ criticalAlerts }}</strong>
+      <div v-if="alertTypes.length" class="threat-overview">
+        <div v-for="type in alertTypes" :key="type" class="threat-overview-item">
+          <span class="status-pill">{{ type }}</span>
+          <strong>{{ alertTypeCounts[type] }}</strong>
         </div>
+      </div>
 
-        <div class="threat-overview-item">
-          <span class="status-pill severity-warning">Warning</span>
-          <strong>{{ warningAlerts }}</strong>
-        </div>
-
-        <div class="threat-overview-item">
-          <span class="status-pill severity-info">Info</span>
-          <strong>{{ infoAlerts }}</strong>
-        </div>
+      <div v-else class="empty">
+        No threat alerts have been recorded.
       </div>
     </section>
 
-    <!-- Latest sensor details -->
+    <!-- Latest sensor reading -->
     <section class="panel">
       <div class="section-heading">
         <div>
@@ -245,6 +232,16 @@ function severityClass(severity) {
         <div>
           <span>Species ID</span>
           <strong>{{ latestReading.species_id }}</strong>
+        </div>
+
+        <div>
+          <span>Common Name</span>
+          <strong>{{ latestReading.common_name || '—' }}</strong>
+        </div>
+
+        <div>
+          <span>Scientific Name</span>
+          <strong>{{ latestReading.scientific_name || '—' }}</strong>
         </div>
 
         <div>
@@ -262,20 +259,18 @@ function severityClass(severity) {
         </div>
 
         <div>
-          <span>Distance</span>
+          <span>Soil Moisture (Raw)</span>
           <strong>
-            {{ formatNumber(latestReading.distance_cm, 2) }} cm
+            {{ latestReading.soil_moisture_raw ?? '—' }}
           </strong>
         </div>
 
         <div>
-          <span>Latitude</span>
-          <strong>{{ latestReading.latitude }}</strong>
-        </div>
-
-        <div>
-          <span>Longitude</span>
-          <strong>{{ latestReading.longitude }}</strong>
+          <span>Soil Moisture (%)</span>
+          <strong>
+            {{ formatNumber(latestReading.soil_moisture_percent) }}
+            %
+          </strong>
         </div>
 
         <div>
@@ -303,18 +298,14 @@ function severityClass(severity) {
       </div>
 
       <div class="filters">
-        <input
-          v-model="searchQuery"
-          type="search"
-          placeholder="Search species, threat, message or location..."
-          aria-label="Search threat alerts"
-        />
+        <input v-model="searchQuery" type="search" placeholder="Search species, threat or message..."
+          aria-label="Search threat alerts" />
 
-        <select v-model="severityFilter" aria-label="Filter by severity">
-          <option value="all">All Severities</option>
-          <option value="critical">Critical</option>
-          <option value="warning">Warning</option>
-          <option value="info">Info</option>
+        <select v-model="alertTypeFilter" aria-label="Filter by threat type">
+          <option value="all">All Threat Types</option>
+          <option v-for="type in alertTypes" :key="type" :value="type">
+            {{ type }}
+          </option>
         </select>
       </div>
 
@@ -322,39 +313,35 @@ function severityClass(severity) {
         <table>
           <thead>
             <tr>
-              <th>Species ID</th>
+              <th>Species</th>
+              <th>Scientific Name</th>
               <th>Threat Type</th>
               <th>Message</th>
-              <th>Severity</th>
-              <th>Location</th>
               <th>Date</th>
             </tr>
           </thead>
 
           <tbody>
-            <tr
-              v-for="alert in filteredAlerts"
-              :key="alert.alert_id"
-            >
-              <td>{{ alert.species_id }}</td>
-              <td>{{ alert.alert_type }}</td>
-              <td>{{ alert.message }}</td>
+            <tr v-for="alert in filteredAlerts" :key="alert.alert_id">
               <td>
-                <span
-                  class="status-pill"
-                  :class="severityClass(alert.severity)"
-                >
-                  {{ alert.severity }}
+                {{ displaySpecies(alert) }}
+                <small>
+                  (ID: {{ alert.species_id }})
+                </small>
+              </td>
+
+              <td>{{ alert.scientific_name || '—' }}</td>
+              <td>
+                <span class="status-pill">
+                  {{ alert.alert_type }}
                 </span>
               </td>
-              <td>
-                {{ alert.latitude }}, {{ alert.longitude }}
-              </td>
+              <td>{{ alert.message }}</td>
               <td>{{ formatDate(alert.created_at) }}</td>
             </tr>
 
             <tr v-if="!filteredAlerts.length">
-              <td colspan="6" class="empty">
+              <td colspan="5" class="empty">
                 No matching threat alerts found.
               </td>
             </tr>
@@ -363,12 +350,12 @@ function severityClass(severity) {
       </div>
     </section>
 
-    <!-- Sensor history -->
+    <!-- Recent sensor readings -->
     <section class="panel">
       <div class="section-heading">
         <div>
           <h2>Recent Sensor Readings</h2>
-          <p>Latest 10 readings received from the monitoring system.</p>
+          <p>Latest 10 environmental readings received.</p>
         </div>
 
         <span class="result-count">
@@ -380,27 +367,41 @@ function severityClass(severity) {
         <table>
           <thead>
             <tr>
-              <th>Species ID</th>
+              <th>Species</th>
               <th>Temperature</th>
               <th>Humidity</th>
-              <th>Distance</th>
-              <th>Location</th>
+              <th>Soil Moisture (Raw)</th>
+              <th>Soil Moisture (%)</th>
               <th>Recorded At</th>
             </tr>
           </thead>
 
           <tbody>
-            <tr
-              v-for="reading in recentReadings"
-              :key="reading.reading_id"
-            >
-              <td>{{ reading.species_id }}</td>
-              <td>{{ formatNumber(reading.temperature) }} °C</td>
-              <td>{{ formatNumber(reading.humidity) }} %</td>
-              <td>{{ formatNumber(reading.distance_cm, 2) }} cm</td>
+            <tr v-for="reading in recentReadings" :key="reading.reading_id">
               <td>
-                {{ reading.latitude }}, {{ reading.longitude }}
+                {{ displaySpecies(reading) }}
+                <small>
+                  (ID: {{ reading.species_id }})
+                </small>
               </td>
+
+              <td>
+                {{ formatNumber(reading.temperature) }} °C
+              </td>
+
+              <td>
+                {{ formatNumber(reading.humidity) }} %
+              </td>
+
+              <td>
+                {{ reading.soil_moisture_raw ?? '—' }}
+              </td>
+
+              <td>
+                {{ formatNumber(reading.soil_moisture_percent) }}
+                {{ reading.soil_moisture_percent == null ? '' : '%' }}
+              </td>
+
               <td>{{ formatDate(reading.recorded_at) }}</td>
             </tr>
 

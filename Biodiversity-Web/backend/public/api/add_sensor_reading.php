@@ -1,9 +1,11 @@
 <?php
+declare(strict_types=1);
+
 require_once __DIR__ . '/../../bootstrap.php';
+
 api(['POST']);
 
-// Authenticate the ESP32 using a device-specific API key.
-// Configure this secret on the server and in the ESP32.
+// Authenticate the ESP32 using its device API key.
 $deviceKey = getenv('IOT_DEVICE_API_KEY');
 $providedKey = $_SERVER['HTTP_X_DEVICE_KEY'] ?? '';
 
@@ -16,83 +18,166 @@ if (
     respond(401, ['error' => 'Unauthorized device.']);
 }
 
+// Read the JSON request.
 $body = jsonBody();
 
+// Required fields.
 $required = [
-    'plant_id',
+    'species_id',
     'temperature',
-    'humidity',
-    'distance_cm',
-    'latitude',
-    'longitude'
+    'humidity'
 ];
 
 foreach ($required as $field) {
-    if (!isset($body[$field]) || !is_numeric($body[$field])) {
-        respond(400, ['error' => "Missing or invalid field: $field"]);
+    if (
+        !array_key_exists($field, $body) ||
+        !is_numeric($body[$field])
+    ) {
+        respond(400, [
+            'error' => "Missing or invalid field: $field"
+        ]);
     }
 }
 
-$plantId = filter_var($body['plant_id'], FILTER_VALIDATE_INT);
+// Validate and convert values.
+$speciesId = filter_var(
+    $body['species_id'],
+    FILTER_VALIDATE_INT
+);
+
 $temperature = (float) $body['temperature'];
 $humidity = (float) $body['humidity'];
-$distance = (float) $body['distance_cm'];
-$latitude = (float) $body['latitude'];
-$longitude = (float) $body['longitude'];
 
 if (
-    $plantId === false || $plantId < 1 ||
+    $speciesId === false ||
+    $speciesId < 1 ||
     !is_finite($temperature) ||
     !is_finite($humidity) ||
-    !is_finite($distance) ||
-    !is_finite($latitude) ||
-    !is_finite($longitude) ||
-    $humidity < 0 || $humidity > 100 ||
-    $distance < 0 ||
-    $latitude < -90 || $latitude > 90 ||
-    $longitude < -180 || $longitude > 180
+    $humidity < 0 ||
+    $humidity > 100
 ) {
-    respond(400, ['error' => 'Sensor values are outside valid ranges.']);
+    respond(400, [
+        'error' => 'Sensor values are outside valid ranges.'
+    ]);
+}
+
+// Optional soil moisture readings.
+$soilMoistureRaw = null;
+$soilMoisturePercent = null;
+
+// Validate raw ADC value.
+if (array_key_exists('soil_moisture_raw', $body)) {
+    if (
+        $body['soil_moisture_raw'] === null ||
+        !is_numeric($body['soil_moisture_raw'])
+    ) {
+        respond(400, [
+            'error' => 'Invalid soil_moisture_raw value.'
+        ]);
+    }
+
+    $soilMoistureRaw = filter_var(
+        $body['soil_moisture_raw'],
+        FILTER_VALIDATE_INT
+    );
+
+    if (
+        $soilMoistureRaw === false ||
+        $soilMoistureRaw < 0 ||
+        $soilMoistureRaw > 4095
+    ) {
+        respond(400, [
+            'error' => 'Soil moisture raw value must be between 0 and 4095.'
+        ]);
+    }
+}
+
+// Validate calibrated soil moisture percentage.
+if (array_key_exists('soil_moisture_percent', $body)) {
+    if (
+        $body['soil_moisture_percent'] === null ||
+        !is_numeric($body['soil_moisture_percent'])
+    ) {
+        respond(400, [
+            'error' => 'Invalid soil_moisture_percent value.'
+        ]);
+    }
+
+    $soilMoisturePercent =
+        (float) $body['soil_moisture_percent'];
+
+    if (
+        !is_finite($soilMoisturePercent) ||
+        $soilMoisturePercent < 0 ||
+        $soilMoisturePercent > 100
+    ) {
+        respond(400, [
+            'error' => 'Soil moisture percentage must be between 0 and 100.'
+        ]);
+    }
 }
 
 $db = database();
 
 try {
-    // Ensure that the referenced species exists.
+    // Retrieve the species names for the response.
     $check = $db->prepare(
-        'SELECT species_id FROM species WHERE species_id = :plant_id'
+        'SELECT species_id, common_name, scientific_name
+         FROM species
+         WHERE species_id = :species_id'
     );
-    $check->execute([':plant_id' => $plantId]);
 
-    if (!$check->fetch()) {
-        respond(404, ['error' => 'Species not found.']);
+    $check->execute([
+        ':species_id' => $speciesId
+    ]);
+
+    $species = $check->fetch();
+
+    if (!$species) {
+        respond(404, [
+            'error' => 'Species not found.'
+        ]);
     }
 
+    // Insert the sensor reading.
     $sql = "INSERT INTO sensor_readings (
-                plant_id, temperature, humidity, distance_cm,
-                latitude, longitude
+                species_id,
+                temperature,
+                humidity,
+                soil_moisture_raw,
+                soil_moisture_percent
             ) VALUES (
-                :plant_id, :temperature, :humidity, :distance_cm,
-                :latitude, :longitude
+                :species_id,
+                :temperature,
+                :humidity,
+                :soil_moisture_raw,
+                :soil_moisture_percent
             )";
 
     $stmt = $db->prepare($sql);
+
     $stmt->execute([
-        ':plant_id'   => $plantId,
+        ':species_id' => $speciesId,
         ':temperature' => $temperature,
-        ':humidity'    => $humidity,
-        ':distance_cm' => $distance,
-        ':latitude'    => $latitude,
-        ':longitude'   => $longitude
+        ':humidity' => $humidity,
+        ':soil_moisture_raw' => $soilMoistureRaw,
+        ':soil_moisture_percent' => $soilMoisturePercent
     ]);
 
     respond(201, [
         'status' => 'success',
         'message' => 'Sensor reading successfully recorded.',
-        'reading_id' => $db->lastInsertId()
+        'reading_id' => (int) $db->lastInsertId(),
+        'common_name' => $species['common_name'],
+        'scientific_name' => $species['scientific_name']
     ]);
 
-} catch (\PDOException $e) {
-    error_log('Sensor Reading Insert Error: ' . $e->getMessage());
-    respond(500, ['error' => 'Database storage failure.']);
+} catch (PDOException $e) {
+    error_log(
+        'Sensor Reading Insert Error: ' . $e->getMessage()
+    );
+
+    respond(500, [
+        'error' => 'Database storage failure.'
+    ]);
 }
