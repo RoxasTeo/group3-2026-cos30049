@@ -3,6 +3,10 @@ require_once __DIR__ . '/../../bootstrap.php';
 
 api(['POST']);
 
+// ==========================================
+// AUTHENTICATE ESP32 DEVICE
+// ==========================================
+
 $deviceKey = getenv('IOT_DEVICE_API_KEY');
 $providedKey = $_SERVER['HTTP_X_DEVICE_KEY'] ?? '';
 
@@ -17,166 +21,191 @@ if (
     ]);
 }
 
+// ==========================================
+// READ JSON REQUEST
+// ==========================================
+
 $body = jsonBody();
 
-<<<<<<< Updated upstream:Biodiversity-Web/backend/public/api/add_threat_alerts.php
-// Accept either agreed API name during device integration; never accept conflicting IDs.
-if (isset($body['species_id'], $body['plant_id']) && filter_var($body['species_id'], FILTER_VALIDATE_INT) !== filter_var($body['plant_id'], FILTER_VALIDATE_INT)) {
-    respond(400, ['error' => 'plant_id and species_id must identify the same species.']);
-}
-if (!isset($body['species_id']) && isset($body['plant_id'])) $body['species_id'] = $body['plant_id'];
+// ==========================================
+// VALIDATE PLANT ID
+// ==========================================
 
-
-=======
-// Validate species_id separately because it is a JSON number.
 if (
-    !array_key_exists('species_id', $body) ||
-    filter_var($body['species_id'], FILTER_VALIDATE_INT) === false
+    !array_key_exists('plant_id', $body) ||
+    filter_var($body['plant_id'], FILTER_VALIDATE_INT) === false
 ) {
     respond(400, [
-        'error' => 'Missing or invalid field: species_id'
+        'error' => 'Missing or invalid field: plant_id'
     ]);
 }
 
-// Validate alert_type and message as strings.
->>>>>>> Stashed changes:Biodiversity-Web/backend/public/api/add_threat_alert.php
-$required = [
-    'alert_type',
-    'severity',
-    'message',
-    'latitude',
-    'longitude'
-];
+$plantId = (int) $body['plant_id'];
 
-foreach ($required as $field) {
-    if (!isset($body[$field])) {
+if ($plantId < 1) {
+    respond(400, [
+        'error' => 'Invalid plant_id.'
+    ]);
+}
+
+// ==========================================
+// VALIDATE TRACKING ASSIGNMENT ID
+// ==========================================
+
+$trackingAssignmentId = null;
+
+if (
+    array_key_exists('tracking_assignment_id', $body) &&
+    $body['tracking_assignment_id'] !== null
+) {
+    $trackingAssignmentId = filter_var(
+        $body['tracking_assignment_id'],
+        FILTER_VALIDATE_INT
+    );
+
+    if (
+        $trackingAssignmentId === false ||
+        $trackingAssignmentId < 1
+    ) {
         respond(400, [
-            'error' => "Missing field: $field"
+            'error' => 'Invalid tracking_assignment_id.'
         ]);
     }
 }
 
-<<<<<<< Updated upstream:Biodiversity-Web/backend/public/api/add_threat_alerts.php
-$speciesId = filter_var(
-    $body['species_id'],
-    FILTER_VALIDATE_INT
-);
-=======
-// Validate and sanitize input.
-$speciesId = (int) $body['species_id'];
->>>>>>> Stashed changes:Biodiversity-Web/backend/public/api/add_threat_alert.php
+// ==========================================
+// VALIDATE ALERT TYPE AND MESSAGE
+// ==========================================
 
-$type = $body['alert_type'];
-$severity = $body['severity'];
-$message = $body['message'];
-
-$allowedTypes = [
-    'motion',
-    'proximity',
-    'temperature',
-    'humidity'
+$required = [
+    'alert_type',
+    'message'
 ];
 
-$allowedSeverities = [
-    'info',
-    'warning',
-    'critical'
-];
+foreach ($required as $field) {
+
+    if (
+        !array_key_exists($field, $body) ||
+        !is_string($body[$field]) ||
+        trim($body[$field]) === ''
+    ) {
+        respond(400, [
+            'error' => "Missing or invalid field: $field"
+        ]);
+    }
+}
+
+// ==========================================
+// VALIDATE AND SANITIZE INPUT
+// ==========================================
+
+$alertType = trim($body['alert_type']);
+$message = trim($body['message']);
 
 if (
-    $speciesId < 1 ||
-    !is_string($type) ||
-    !in_array($type, $allowedTypes, true) ||
-    !is_string($severity) ||
-    !in_array($severity, $allowedSeverities, true) ||
-    !is_string($message) ||
-    trim($message) === '' ||
-    strlen($message) > 255 ||
-    !is_numeric($body['latitude']) ||
-    !is_numeric($body['longitude'])
+    strlen($alertType) > 30 ||
+    strlen($message) > 255
 ) {
     respond(400, [
-        'error' => 'Invalid threat alert data.'
+        'error' => 'Alert values are invalid or too long.'
     ]);
 }
 
-$latitude = (float) $body['latitude'];
-$longitude = (float) $body['longitude'];
-
-if (
-    !is_finite($latitude) ||
-    !is_finite($longitude) ||
-    $latitude < -90 ||
-    $latitude > 90 ||
-    $longitude < -180 ||
-    $longitude > 180
-) {
-    respond(400, [
-        'error' => 'Invalid coordinates.'
-    ]);
-}
+// ==========================================
+// DATABASE OPERATIONS
+// ==========================================
 
 $db = database();
 
 try {
-    // Verify that the species exists.
-    $check = $db->prepare(
-        'SELECT species_id
-         FROM species
-         WHERE species_id = :species_id'
+
+    // ======================================
+    // CHECK WHETHER PLANT EXISTS
+    // ======================================
+
+    $checkPlant = $db->prepare(
+        'SELECT id
+         FROM plants
+         WHERE id = :plant_id'
     );
 
-    $check->execute([
-        ':species_id' => $speciesId
+    $checkPlant->execute([
+        ':plant_id' => $plantId
     ]);
 
-    if (!$check->fetch()) {
+    if (!$checkPlant->fetch()) {
         respond(404, [
-            'error' => 'Species not found.'
+            'error' => 'Plant not found.'
         ]);
     }
 
-    // Insert the alert.
-    // The request uses species_id, while the database column is plant_id.
+    // ======================================
+    // CHECK TRACKING ASSIGNMENT
+    // ======================================
+
+    if ($trackingAssignmentId !== null) {
+
+        $checkAssignment = $db->prepare(
+            'SELECT id
+             FROM tracking_assignments
+             WHERE id = :assignment_id
+               AND plant_id = :plant_id
+               AND ended_at IS NULL'
+        );
+
+        $checkAssignment->execute([
+            ':assignment_id' => $trackingAssignmentId,
+            ':plant_id' => $plantId
+        ]);
+
+        if (!$checkAssignment->fetch()) {
+            respond(400, [
+                'error' => 'Invalid or inactive tracking assignment for this plant.'
+            ]);
+        }
+    }
+
+    // ======================================
+    // INSERT THREAT ALERT
+    // ======================================
+
     $sql = "INSERT INTO threat_alerts (
+                tracking_assignment_id,
                 plant_id,
                 alert_type,
-                severity,
-                message,
-                latitude,
-                longitude
+                message
             ) VALUES (
+                :tracking_assignment_id,
                 :plant_id,
                 :alert_type,
-                :severity,
-                :message,
-                :latitude,
-                :longitude
+                :message
             )";
 
     $stmt = $db->prepare($sql);
 
     $stmt->execute([
-        ':plant_id'   => $speciesId,
-        ':alert_type' => $type,
-        ':severity'   => $severity,
-        ':message'    => trim($message),
-        ':latitude'   => $latitude,
-        ':longitude'  => $longitude
+        ':tracking_assignment_id' => $trackingAssignmentId,
+        ':plant_id' => $plantId,
+        ':alert_type' => $alertType,
+        ':message' => $message
     ]);
+
+    // ======================================
+    // SUCCESS RESPONSE
+    // ======================================
 
     respond(201, [
         'status' => 'success',
         'message' => 'Threat alert successfully recorded.',
-        'alert_id' => $db->lastInsertId()
+        'alert_id' => (int) $db->lastInsertId(),
+        'plant_id' => $plantId,
+        'tracking_assignment_id' => $trackingAssignmentId,
+        'alert_type' => $alertType,
+        'alert_message' => $message
     ]);
 
-<<<<<<< Updated upstream:Biodiversity-Web/backend/public/api/add_threat_alerts.php
-} catch (\PDOException $e) {
-=======
 } catch (PDOException $e) {
 
->>>>>>> Stashed changes:Biodiversity-Web/backend/public/api/add_threat_alert.php
     error_log(
         'Threat Alert Insert Error: ' . $e->getMessage()
     );

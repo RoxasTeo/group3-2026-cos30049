@@ -8,7 +8,24 @@ requireRole(['admin', 'conservation_officer']);
 $db = database();
 
 try {
-    $stmt = $db->query("SELECT t.reading_id, t.plant_id AS species_id, t.tracking_assignment_id, t.temperature, t.humidity, t.distance_cm, t.latitude, t.longitude, t.recorded_at, p.plant_tag, d.device_code FROM sensor_readings t LEFT JOIN tracking_assignments a ON a.id=t.tracking_assignment_id LEFT JOIN tracked_plants p ON p.id=a.plant_id LEFT JOIN tracking_devices d ON d.id=a.device_id ORDER BY t.recorded_at DESC, t.reading_id DESC");
+    $stmt = $db->query("
+        SELECT
+            sr.reading_id,
+            sr.species_id,
+            s.common_name,
+            s.scientific_name,
+            sr.temperature,
+            sr.humidity,
+            sr.soil_moisture_raw,
+            sr.soil_moisture_percent,
+            sr.recorded_at
+        FROM sensor_readings sr
+        INNER JOIN species s
+            ON s.species_id = sr.species_id
+        ORDER BY
+            sr.recorded_at DESC,
+            sr.reading_id DESC
+    ");
 
     $readings = $stmt->fetchAll();
 
