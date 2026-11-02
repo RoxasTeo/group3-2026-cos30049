@@ -148,12 +148,6 @@ Open http://localhost:5173 and sign in. If login returns a generic error, see Tr
 
 If PHP runs on another port, set it before starting Expo, e.g. `$env:EXPO_PUBLIC_API_PORT = '8091'`.
 
-## Notes for specific teammates
-
-- **Qi Wei (mobile):** your mobile work from `qiwei/mobile-login&navigation` is merged and upgraded to SDK 58. The root `backend/` Node.js API is not part of `main`; you can stop its local MySQL (`npm.cmd run db:stop` on your branch). Please continue from `main`. Role names now match the backend: `botanist`, `conservation_officer`.
-- **Cakey (IoT):** current ESP32 requests to `add_sensor_reading.php` need no change. Optional new fields: `distance_cm` (enables movement/proximity alerts) and `latitude`/`longitude` (device GPS). The response now includes `automatic_alerts`. `add_threat_alert.php` accepts an optional `severity` (`info`, `warning`, `critical`). See the top of [`Biodiversity-Web/MONITORING.md`](Biodiversity-Web/MONITORING.md).
-- **Web:** observation details show the mobile fields "Field conservation status" and "Morphology"; the Monitoring dashboard shows alert severity, reading distance and GPS source. User and submitter names are decrypted by the backend, so lists sort in PHP rather than SQL.
-
 ## Troubleshooting
 
 | Symptom | Fix |
