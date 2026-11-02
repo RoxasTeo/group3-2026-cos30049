@@ -3,7 +3,7 @@ import { useSession } from '../auth/SessionProvider';
 import { loginRequest } from '../auth/loginRequest';
 import { apiBaseUrl } from '../auth/apiConfig';
 // React hooks: useState remembers changing values; useRef keeps a reference to an input.
-import { useRef, useState } from 'react';
+import { useRef, useState, type ComponentRef } from 'react';
 // React Native provides the layout, text, input, button, and scrolling components.
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 // Safe-area insets tell us how much space to leave for notches and system bars.
@@ -73,7 +73,7 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   // This reference lets the email keyboard's Next action focus the password input.
-  const passwordInput = useRef<TextInput>(null);
+  const passwordInput = useRef<ComponentRef<typeof TextInput>>(null);
   // Controlled input values: setters update the text displayed in each field.
   // This component holds credentials in memory; it sends them to the sign-in API and never saves the password.
   const [email, setEmail] = useState('');

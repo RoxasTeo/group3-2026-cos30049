@@ -1,6 +1,6 @@
 # Niah Biodiversity mobile app
 
-Expo SDK 57, React Native, TypeScript and Expo Router. Edit this folder in Visual Studio Code.
+Expo SDK 58, React Native, TypeScript and Expo Router. Edit this folder in Visual Studio Code.
 
 The app uses the **same PHP backend and MySQL database as the Web portal** (`../Biodiversity-Web/backend`). Botanist uploads become observations in the Web review queue, appear on species distribution maps once approved, and the app's species reference is the Web knowledge system. Set up the backend first with [`../Biodiversity-Web/SETUP.md`](../Biodiversity-Web/SETUP.md), including migration `006_mobile_api.sql` on an existing database.
 
