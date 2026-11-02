@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import context from '../data/niah-context.json'
 import { request } from '../services/authService'
 
-const data = ref({ plants: [], devices: [], species: [], trail: [], assignments: [] }), busy = ref(false), saving = ref(false), error = ref(''), notice = ref(''), selected = ref(''), search = ref(''), status = ref(''), online = ref(false), tileError = ref(false), mapEl = ref(null), keyDialog = ref(null), newKey = ref('')
+const data = ref({ plants: [], devices: [], species: [], trail: [], assignments: [] }), busy = ref(false), saving = ref(false), error = ref(''), notice = ref(''), selected = ref(''), search = ref(''), status = ref(''), online = ref(true), tileError = ref(false), mapEl = ref(null), keyDialog = ref(null), newKey = ref('')
 const plant = reactive({ id: null, version: null, species_id: '', plant_tag: '', label: '', latitude: '', longitude: '' })
 const device = reactive({ id: null, version: null, device_code: '', name: '', is_active: true })
 const assignment = reactive({ device_id: '', plant_id: '' })
@@ -70,7 +70,58 @@ function locate(d) {
 watch([filtered, selected], draw)
 watch(selected, () => { data.value.trail = []; data.value.assignments = []; draw(); load() })
 watch(online, v => { if (!map) return; if (v) { tileError.value = false; tiles.addTo(map) } else tiles.remove() })
-onMounted(() => { map = L.map(mapEl.value, { scrollWheelZoom: false, maxZoom: 19, minZoom: 2 }); L.geoJSON(context, { style: feature => ({ color: feature.properties.kind === 'water' ? '#8BAFBD' : '#B1B89C', weight: 1, fillColor: '#DFE9D2', fillOpacity: .5 }), interactive: false, attribution: 'Local Niah context © OpenStreetMap contributors' }).addTo(map); tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).on('tileerror', () => tileError.value = true); layer = L.layerGroup().addTo(map); map.fitBounds([[3.77, 113.73], [3.85, 113.84]]); observer = new ResizeObserver(() => map?.invalidateSize()); observer.observe(mapEl.value); load(); timer = setInterval(() => { if (!document.hidden && !busy.value) load() }, 30000) })
+onMounted(() => {
+  map = L.map(mapEl.value, {
+    scrollWheelZoom: false,
+    maxZoom: 19,
+    minZoom: 2
+  })
+
+  // Local Niah context overlay
+  L.geoJSON(context, {
+    style: feature => ({
+      color: feature.properties.kind === 'water' ? '#8BAFBD' : '#B1B89C',
+      weight: 1,
+      fillColor: '#DFE9D2',
+      fillOpacity: 0.5
+    }),
+    interactive: false,
+    attribution: 'Local Niah context © OpenStreetMap contributors'
+  }).addTo(map)
+
+  // Online OpenStreetMap basemap
+  tiles = L.tileLayer(
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap contributors'
+    }
+  )
+
+  tiles.on('tileerror', () => {
+    tileError.value = true
+  })
+
+  tiles.on('tileload', () => {
+    tileError.value = false
+  })
+
+  // Add online basemap immediately
+  tiles.addTo(map)
+
+  layer = L.layerGroup().addTo(map)
+
+  map.fitBounds([[3.77, 113.73], [3.85, 113.84]])
+
+  observer = new ResizeObserver(() => map?.invalidateSize())
+  observer.observe(mapEl.value)
+
+  load()
+
+  timer = setInterval(() => {
+    if (!document.hidden && !busy.value) load()
+  }, 30000)
+})
 onBeforeUnmount(() => { mounted = false; controller?.abort(); clearInterval(timer); observer?.disconnect(); map?.remove(); newKey.value = '' })
 </script>
 
@@ -165,11 +216,11 @@ onBeforeUnmount(() => { mounted = false; controller?.abort(); clearInterval(time
               <td>{{ d.recorded_at || 'No report' }}</td>
               <td>
                 <div class="tracking-actions">
-                    <button class="button" @click="locate(d)">Locate</button>
-                    <button class="button" :disabled="saving" @click="editDevice(d)">Edit</button>
-                    <button v-if="d.assignment_id" class="button" :disabled="saving" @click="unbind(d)">Unassign</button>
-                    <button class="button" :disabled="saving" @click="rotate(d)">Replace key</button>
-                  </div>
+                  <button class="button" @click="locate(d)">Locate</button>
+                  <button class="button" :disabled="saving" @click="editDevice(d)">Edit</button>
+                  <button v-if="d.assignment_id" class="button" :disabled="saving" @click="unbind(d)">Unassign</button>
+                  <button class="button" :disabled="saving" @click="rotate(d)">Replace key</button>
+                </div>
               </td>
             </tr>
             <tr v-if="!filtered.length">
