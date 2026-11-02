@@ -41,6 +41,32 @@ async function bind() { const d = data.value.devices.find(d => String(d.id) === 
 async function unbind(d) { if (window.confirm('End this device assignment? Historical data will be retained.')) await save({ action: 'unassign', id: d.id, version: d.version }) }
 async function rotate(d) { if (window.confirm('Replace this device key? The old key will stop working immediately.')) await save({ action: 'rotate_key', id: d.id, version: d.version }) }
 function closeKey() { newKey.value = ''; keyDialog.value.close() }
+function locate(d) {
+  selected.value = String(d.id)
+
+  // Prefer the device's latest reported GPS coordinates.
+  // If unavailable, use the registered plant coordinates.
+  const p = plantFor(d)
+  const point = coordinates(d)
+    ? [+d.latitude, +d.longitude]
+    : coordinates(p)
+      ? [+p.latitude, +p.longitude]
+      : null
+
+  if (!point) {
+    notice.value = 'No GPS coordinates are available for this device or its assigned plant.'
+    return
+  }
+
+  if (map) {
+    map.flyTo(point, 17, {
+      animate: true,
+      duration: 1
+    })
+  }
+
+  notice.value = `Located ${d.device_code}.`
+}
 watch([filtered, selected], draw)
 watch(selected, () => { data.value.trail = []; data.value.assignments = []; draw(); load() })
 watch(online, v => { if (!map) return; if (v) { tileError.value = false; tiles.addTo(map) } else tiles.remove() })
@@ -56,7 +82,7 @@ onBeforeUnmount(() => { mounted = false; controller?.abort(); clearInterval(time
         <h1>Plant & sensor tracking</h1>
         <p>Connect individual plants to devices and inspect their latest reported positions.</p>
       </div><button class="button primary" :disabled="busy" @click="load">{{ busy ? 'Refreshing…' : 'Refresh tracking'
-        }}</button>
+      }}</button>
     </div>
     <p v-if="error" class="error" role="alert">{{ error }}</p>
     <p v-if="notice" class="tracking-notice" role="status">{{ notice }}</p>
@@ -138,11 +164,12 @@ onBeforeUnmount(() => { mounted = false; controller?.abort(); clearInterval(time
               <td>{{ state(d) }}</td>
               <td>{{ d.recorded_at || 'No report' }}</td>
               <td>
-                <div class="tracking-actions"><button class="button"
-                    @click="selected = String(d.id)">Locate</button><button class="button" :disabled="saving"
-                    @click="editDevice(d)">Edit</button><button v-if="d.assignment_id" class="button" :disabled="saving"
-                    @click="unbind(d)">Unassign</button><button class="button" :disabled="saving"
-                    @click="rotate(d)">Replace key</button></div>
+                <div class="tracking-actions">
+                    <button class="button" @click="locate(d)">Locate</button>
+                    <button class="button" :disabled="saving" @click="editDevice(d)">Edit</button>
+                    <button v-if="d.assignment_id" class="button" :disabled="saving" @click="unbind(d)">Unassign</button>
+                    <button class="button" :disabled="saving" @click="rotate(d)">Replace key</button>
+                  </div>
               </td>
             </tr>
             <tr v-if="!filtered.length">
