@@ -23,7 +23,8 @@ export async function capturePhoto(source: 'camera' | 'gallery'): Promise<PlantP
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) throw new CaptureError('Camera access was denied. Allow camera access in settings or choose a photograph.', 'denied', !permission.canAskAgain);
   }
-  const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: false, quality: 1, base64: true, exif: false };
+  // Full-quality phone photos often exceed the 5 MB upload limit; 0.6 JPEG keeps field detail at a few MB.
+  const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: false, quality: 0.6, base64: true, exif: false };
   const result = source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
   if (result.canceled) return null;
   const asset = result.assets[0];
