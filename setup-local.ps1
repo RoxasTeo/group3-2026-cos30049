@@ -169,7 +169,14 @@ Ok "Runtime account $DbUser can read and write $DbName"
 
 if (-not $hasUsers) {
     SqlFile (Join-Path $backend 'schema.sql') $DbName
-    Ok 'Imported schema.sql (new database)'
+    # A damaged MySQL/MariaDB data folder can accept CREATE DATABASE but fail every CREATE TABLE.
+    $required = @('users', 'species', 'observations', 'data_protection_state', 'mobile_tokens', 'sensor_readings', 'threat_alerts')
+    $found = @(Sql "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA='$q'")
+    $missing = @($required | Where-Object { $found -notcontains $_ })
+    if ($missing.Count) {
+        Fail "schema.sql did not create these tables: $($missing -join ', '). MySQL itself may be damaged: check its error log (XAMPP: C:\xampp\mysql\data\mysql_error.log) for InnoDB errors, then run this script again."
+    }
+    Ok "Imported schema.sql (new database, $($found.Count) tables)"
 } else {
     Note 'Existing data found: backing up, then upgrading in place.'
     $dump = Join-Path $backupDir ("$DbName-before-setup-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.sql')
