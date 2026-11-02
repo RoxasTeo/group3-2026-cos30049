@@ -23,8 +23,18 @@ export default function PlantRecordFormScreen() {
   const [error, setError] = useState(''), [saving, setSaving] = useState(false), [finishedId, setFinishedId] = useState<string | null>(null);
   const [discardVisible, setDiscardVisible] = useState(false);
   const pendingLeave = useRef<(() => void) | null>(null);
-  const dirty = (JSON.stringify({ form, photos, location }) !== initial || capturing) && !finishedId;
-  usePreventRemove(!!dirty, ({ data }) => { pendingLeave.current = () => navigation.dispatch(data.action); setDiscardVisible(true); });
+  // The exit the user asked for (Back button or a tab). Re-run it after discarding: replaying the
+  // intercepted action is not handled reliably inside the plant Slot layout.
+  const requestedExit = useRef<(() => void) | null>(null);
+  const [discarding, setDiscarding] = useState(false);
+  const dirty = (JSON.stringify({ form, photos, location }) !== initial || capturing) && !finishedId && !discarding;
+  usePreventRemove(!!dirty, ({ data }) => { pendingLeave.current = requestedExit.current ?? (() => navigation.dispatch(data.action)); requestedExit.current = null; setDiscardVisible(true); });
+  // Leave only after the re-render that turns prevention off.
+  useEffect(() => {
+    if (!discarding) return;
+    const go = pendingLeave.current; pendingLeave.current = null;
+    (go ?? leave)();
+  }, [discarding]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (Platform.OS !== 'web' || !dirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
@@ -38,6 +48,7 @@ export default function PlantRecordFormScreen() {
   function set(key: TextKey, value: string) { setForm(previous => ({ ...previous, [key]: value })); setError(''); }
   // New records started from the species reference return Home; edits return to the record.
   const backTo = editing ? 'record details' : params.reference ? 'Home' : 'Records';
+  function exit(go: () => void) { requestedExit.current = go; go(); }
   function leave() { router.replace(editing ? { pathname: '/plant/[plantId]', params: { plantId: id } } : params.reference ? '/navigation/botanist/home' : '/navigation/botanist/records'); }
   async function save(ready: boolean) {
     if (saving || finishedId || capturing) return;
@@ -48,8 +59,8 @@ export default function PlantRecordFormScreen() {
   function field(key: TextKey, label: string, placeholder: string, multiline = false) {
     return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput accessibilityLabel={label} value={form[key]} keyboardType={key === 'heightMetres' ? 'decimal-pad' : 'default'} onChangeText={value => set(key, value)} placeholder={placeholder} placeholderTextColor={colors.muted} multiline={multiline} maxLength={multiline ? 2000 : 140} autoCapitalize={key === 'scientificName' ? 'none' : 'sentences'} style={[styles.input, multiline && styles.multiline]} /></View>;
   }
-  return <RecordFrame onTab={destination => router.replace(destination)}><KeyboardAvoidingView style={ui.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><RecordScroll>
-    <RecordBack label={backTo} onPress={leave} />
+  return <RecordFrame onTab={destination => exit(() => router.replace(destination))}><KeyboardAvoidingView style={ui.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><RecordScroll>
+    <RecordBack label={backTo} onPress={() => exit(leave)} />
     {locked ? <><Text accessibilityRole="header" style={ui.title}>{existing ? 'Record is read-only' : 'Draft not found'}</Text><Text style={ui.paragraph}>Only existing drafts can be edited. A new record must use a unique plant ID.</Text><RecordButton label="Back to Records" onPress={() => router.replace('/navigation/botanist/records')} /></> : <>
       <View><Text style={ui.eyebrow}>FIELD DOCUMENTATION</Text><Text accessibilityRole="header" style={ui.title}>{editing ? 'Continue draft' : 'New plant record'}</Text><Text style={ui.subtitle}>Save incomplete observations as a draft.</Text></View>
       <View style={styles.field}><Text style={styles.label}>Plant / temporary ID</Text><Text selectable style={[styles.input, styles.readonly]}>{id}</Text><Text style={ui.caption}>Assigned once. An unidentified plant can keep a temporary ID.</Text></View>
@@ -70,7 +81,7 @@ export default function PlantRecordFormScreen() {
       <RecordButton label="Mark ready to sync" disabled={saving || capturing} onPress={() => save(true)} />
       <Text style={ui.caption}>Saved records and photographs remain on this device. Mark ready, then use Sync when you have a connection.</Text>
     </>}
-    <ConfirmRecordAction visible={discardVisible} title="Discard unsaved changes?" description="Your last saved draft will be kept. Changes made since then will be discarded." confirmLabel="Discard changes" onCancel={() => { setDiscardVisible(false); pendingLeave.current = null; }} onConfirm={() => { setDiscardVisible(false); const action = pendingLeave.current; pendingLeave.current = null; action?.(); }} />
+    <ConfirmRecordAction visible={discardVisible} title="Discard unsaved changes?" description="Your last saved draft will be kept. Changes made since then will be discarded." confirmLabel="Discard changes" onCancel={() => { setDiscardVisible(false); pendingLeave.current = null; }} onConfirm={() => { setDiscardVisible(false); setDiscarding(true); }} />
   </RecordScroll></KeyboardAvoidingView></RecordFrame>;
 }
 const styles = StyleSheet.create({ field: { gap: 8 }, label: { fontSize: 13, fontWeight: '600', color: colors.ink }, input: { borderWidth: 1, borderColor: colors.border, borderRadius: 11, backgroundColor: colors.paper, padding: 14, minHeight: 52, fontSize: 16, color: colors.ink }, readonly: { backgroundColor: colors.soft, fontSize: 13 }, multiline: { minHeight: 110, textAlignVertical: 'top' }, readiness: { padding: 16, backgroundColor: colors.soft, borderRadius: 12, gap: 10 }, check: { flexDirection: 'row', alignItems: 'center', gap: 8 } });
