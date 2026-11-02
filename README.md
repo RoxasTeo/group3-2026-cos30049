@@ -2,7 +2,7 @@
 
 Integrated Web and mobile workspace for local development. Both clients use one PHP backend and MySQL database. Hardware firmware and cloud deployment are separate work.
 
-> **Pulled the November 2026 mobile/PHP integration?** Run `powershell -ExecutionPolicy Bypass -File .\setup-local.ps1` once (details in [TEAM_UPGRADE.md](TEAM_UPGRADE.md)): it adds the required encryption key and database migrations. New teammates can use the same script.
+> **Pulled the November 2026 mobile/PHP integration?** Run `powershell -ExecutionPolicy Bypass -File .\setup-local.ps1 -Demo` once (step-by-step guide and demo accounts in [TEAM_UPGRADE.md](TEAM_UPGRADE.md)): it adds the required encryption key, database and migrations, plus demo accounts and sample data. New teammates can use the same script.
 
 ## Layout
 
