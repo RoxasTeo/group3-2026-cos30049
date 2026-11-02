@@ -34,7 +34,7 @@ export default function BotanistHomeScreen() {
 
       <View style={s.preview}>
         <Text style={s.previewLabel}>YOUR RECORD COLLECTION</Text>
-        <Text style={s.previewText}>Save fieldwork offline, then upload from Sync. Demo observations are fictional.</Text>
+        <Text style={s.previewText}>Save fieldwork offline, then upload from Sync. Officers review uploads on the Web portal.</Text>
       </View>
 
       <RecordsConnectionNotice />

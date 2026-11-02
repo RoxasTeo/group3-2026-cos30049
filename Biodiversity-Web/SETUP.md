@@ -227,7 +227,7 @@ IoT pages can open without physical devices. Actual readings and automated alert
 
 Do not follow the fresh-database creation/import steps over an existing database. Back up the full database and preserve its matching key before upgrading. A Git pull updates code only; it does not migrate data.
 
-For an older schema, inspect which changes are missing and apply only the corresponding SQL migrations 001-004 and 006 under `backend/migrations`, using a separate database operator account. Check existing indexes before applying 002/003. `CREATE TABLE IF NOT EXISTS` in the full schema does not upgrade old table definitions. Migration 005 is a CLI data migration, not an SQL file.
+For an older schema, inspect which changes are missing and apply only the corresponding SQL migrations 001-004, 006 and 007 under `backend/migrations`, using a separate database operator account. Check existing indexes before applying 002/003. `CREATE TABLE IF NOT EXISTS` in the full schema does not upgrade old table definitions. Migration 005 is a CLI data migration, not an SQL file.
 
 Databases created before this version store names, emails and notes in plaintext and must be encrypted once. Apply SQL migration 006 first, then, before the encryption migration:
 

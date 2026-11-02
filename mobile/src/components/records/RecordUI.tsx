@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from 'react';
+import { useEffect, useState, type PropsWithChildren } from 'react';
 import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,11 +32,29 @@ export function RecordBack({ onPress, label = 'Records' }: { onPress: () => void
 export function ConfirmRecordAction({ visible, title, description, confirmLabel, cancelLabel = 'Keep editing', onCancel, onConfirm }: { visible: boolean; title: string; description: string; confirmLabel: string; cancelLabel?: string; onCancel: () => void; onConfirm: () => void }) {
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}><View style={ui.overlay}><View accessibilityViewIsModal accessibilityRole="alert" style={ui.dialog}><RecordIcon name="alert" color={colors.red} size={28} /><Text accessibilityRole="header" style={ui.confirmTitle}>{title}</Text><Text style={ui.paragraph}>{description}</Text><RecordButton label={cancelLabel} onPress={onCancel} /><RecordButton label={confirmLabel} danger onPress={onConfirm} /></View></View></Modal>;
 }
-export function RecordPhotos({ record }: { record: PlantRecord }) {
+// Photos synced from another device are private: download them with the account token
+// (Image source headers are ignored on web) and show them as data URLs for this session.
+const remotePhotos = new Map<string, string>();
+function RemotePhoto({ plantId, index, label }: { plantId: string; index: number; label: string }) {
   const { session } = useSession();
-  // Photos synced from another device are fetched with the account token; they are not public URLs.
-  const remote = (index: number) => ({ uri: `${apiBaseUrl()}/mobile/photo.php?plantId=${encodeURIComponent(record.plantId)}&index=${index}`, headers: { Authorization: `Bearer ${session?.token ?? ''}` } });
-  return <View style={ui.panel}><Text style={ui.sectionTitle}>Photographs</Text>{record.photos.length ? record.photos.map(photo => <View key={photo.id} style={{ gap: 6 }}>{photo.uri || photo.remoteIndex !== undefined ? <Image source={photo.uri ? { uri: photo.uri } : remote(photo.remoteIndex as number)} style={ui.photo} accessibilityLabel={photo.caption || 'Collected plant photograph'} /> : <View style={ui.photoEmpty}><RecordIcon name="photo" size={24} /><Text style={ui.caption}>{photo.sampleLabel || 'Sample photograph placeholder'}</Text></View>}{!!photo.caption && <Text style={ui.paragraph}>{photo.caption}</Text>}</View>) : <Text style={ui.paragraph}>No photographs attached.</Text>}</View>;
+  const url = `${apiBaseUrl()}/mobile/photo.php?plantId=${encodeURIComponent(plantId)}&index=${index}`;
+  const [uri, setUri] = useState(() => remotePhotos.get(url));
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (uri || !session) return;
+    let active = true;
+    void fetch(url, { headers: { Authorization: `Bearer ${session.token}` } })
+      .then(response => { if (!response.ok) throw new Error(); return response.blob(); })
+      .then(blob => new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(blob); }))
+      .then(data => { remotePhotos.set(url, data); if (active) setUri(data); })
+      .catch(() => { if (active) setFailed(true); });
+    return () => { active = false; };
+  }, [url, uri, session]);
+  if (uri) return <Image source={{ uri }} style={ui.photo} accessibilityLabel={label} />;
+  return <View style={ui.photoEmpty}><RecordIcon name="photo" size={24} /><Text style={ui.caption}>{failed ? 'Photograph unavailable offline. Connect and reopen this record.' : 'Downloading photograph…'}</Text></View>;
+}
+export function RecordPhotos({ record }: { record: PlantRecord }) {
+  return <View style={ui.panel}><Text style={ui.sectionTitle}>Photographs</Text>{record.photos.length ? record.photos.map(photo => <View key={photo.id} style={{ gap: 6 }}>{!photo.uri && photo.remoteIndex !== undefined ? <RemotePhoto plantId={record.plantId} index={photo.remoteIndex} label={photo.caption || 'Collected plant photograph'} /> : photo.uri ? <Image source={{ uri: photo.uri }} style={ui.photo} accessibilityLabel={photo.caption || 'Collected plant photograph'} /> : <View style={ui.photoEmpty}><RecordIcon name="photo" size={24} /><Text style={ui.caption}>{photo.sampleLabel || 'Sample photograph placeholder'}</Text></View>}{!!photo.caption && <Text style={ui.paragraph}>{photo.caption}</Text>}</View>) : <Text style={ui.paragraph}>No photographs attached.</Text>}</View>;
 }
 export function RecordScroll({ children }: PropsWithChildren) { return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={ui.scroll}>{children}</ScrollView>; }
 export function recordDate(iso: string) { return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
