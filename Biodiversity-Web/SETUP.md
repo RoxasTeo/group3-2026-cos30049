@@ -151,6 +151,16 @@ Open **http://localhost:5173** (login: **http://localhost:5173/#/login**) and si
 
 The frontend proxies `/api` and `/auth` to `http://localhost:8080`. Use `localhost` consistently rather than mixing it with `127.0.0.1`. Keep `APP_ORIGIN` equal to the frontend origin. Vite uses port 5173 with `strictPort`; it will fail rather than silently select another port.
 
+### Mobile app
+
+The Expo app in `mobile/` uses this same backend through `/api/mobile/*` (bearer tokens; no cookies). Botanist uploads land in the Web review queue. For a phone on the same Wi-Fi, serve on all interfaces instead of `localhost`:
+
+```powershell
+php -S 0.0.0.0:8080 -t Biodiversity-Web/backend/public
+```
+
+Then follow [`mobile/README.md`](../mobile/README.md). Sign in on the phone with a `botanist` or `conservation_officer` account. Plain PHP installs limit request bodies to 8 MB; photo uploads need `-d post_max_size=32M` (XAMPP already allows 40 MB).
+
 If backend port 8080 is occupied, stop your own conflicting service or use another port:
 
 ```powershell
@@ -203,7 +213,7 @@ Do not create/import a fresh database over existing data. Back up the complete d
 
 If migration 005 encryption was already applied, stop all writers and follow [the rollback guide](#appendix-previously-encrypted-databases), using the original matching key. The normal application no longer decrypts those fields. Keep the private key and old backups for recovery; they are not required by the converted runtime.
 
-For an older unencrypted schema, inspect missing changes and apply only the corresponding SQL migrations 001-004 under `backend/migrations`, using a separate database operator account. Check existing indexes before applying 002/003. Do not run the former encryption migration 005. `CREATE TABLE IF NOT EXISTS` does not upgrade existing table definitions.
+For an older unencrypted schema, inspect missing changes and apply only the corresponding SQL migrations 001-004 and 006 under `backend/migrations`, using a separate database operator account. Check existing indexes before applying 002/003. Do not run the former encryption migration 005. `CREATE TABLE IF NOT EXISTS` does not upgrade existing table definitions.
 
 For later updates, preserve local changes, pull `main`, read migration notes, run `npm ci` in the frontend directory when dependencies change, and restart both services. Keep the normal runtime database account restricted to data access.
 

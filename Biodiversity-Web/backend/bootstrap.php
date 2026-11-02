@@ -54,7 +54,8 @@ function respond(int $status, array $body): never {
     exit;
 }
 
-function api(array $methods): void {
+// $session = false is for bearer-token (mobile) endpoints: no cookies, no CSRF, no credentialed CORS.
+function api(array $methods, bool $session = true): void {
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
     header('X-Content-Type-Options: nosniff');
@@ -65,15 +66,17 @@ function api(array $methods): void {
         respond(500, ['error' => 'Internal server error']);
     });
     $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-    if ($origin !== '' && $origin !== setting('APP_ORIGIN', 'http://localhost:5173')) {
+    // Native apps send no Origin. Browser previews of the mobile app must be listed explicitly.
+    $allowed = $session ? [setting('APP_ORIGIN', 'http://localhost:5173')] : array_filter(array_map('trim', explode(',', setting('MOBILE_WEB_ORIGINS'))));
+    if ($origin !== '' && !in_array($origin, $allowed, true)) {
         respond(403, ['error' => 'Origin not allowed']);
     }
     header('Vary: Origin');
     if ($origin !== '') {
         header('Access-Control-Allow-Origin: ' . $origin);
-        header('Access-Control-Allow-Credentials: true');
+        if ($session) header('Access-Control-Allow-Credentials: true');
     }
-    header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token');
+    header('Access-Control-Allow-Headers: ' . ($session ? 'Content-Type, X-CSRF-Token' : 'Content-Type, Authorization'));
     header('Access-Control-Allow-Methods: ' . implode(', ', $methods) . ', OPTIONS');
     $method = $_SERVER['REQUEST_METHOD'] ?? '';
     if ($method === 'OPTIONS') { http_response_code(204); exit; }
@@ -81,6 +84,7 @@ function api(array $methods): void {
         header('Allow: ' . implode(', ', $methods));
         respond(405, ['error' => 'Method not allowed']);
     }
+    if (!$session) return;
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
     session_set_cookie_params([

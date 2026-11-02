@@ -36,6 +36,21 @@ All responses are JSON and use `Cache-Control: no-store`. All browser requests u
 
 For every POST, send `X-CSRF-Token` from the latest response. Login requires `Content-Type: application/json`. Fetch a CSRF token before login; replace it with the token returned after successful login. User objects contain `id`, `name`, `email`, and `role`; never a password hash. Ignore client-side role claims.
 
+## Mobile API contract
+
+The Expo app (`../../mobile`) uses bearer tokens instead of cookies, so these endpoints need no CSRF token. Native apps send no `Origin`; browser previews must be listed in `MOBILE_WEB_ORIGINS`. Send `Authorization: Bearer <token>` on every call except login. Records are stored as `observations`, so the Web review queue, distribution maps and reports include them.
+
+| Method | Path | Result |
+| --- | --- | --- |
+| POST | /api/mobile/login.php | JSON email/password (same throttle as Web login); `{ token, expiresIn, user }`. Botanists and conservation officers only; other roles get 403 |
+| POST | /api/mobile/logout.php | Revokes the token |
+| GET | /api/mobile/species.php | Knowledge-system species without photographs, for offline caching |
+| GET | /api/mobile/plants.php?limit=100&offset=0 | The caller's own field records, newest review status and reviewer notes included |
+| POST | /api/mobile/plants.php | Botanist upload: plant ID, names, notes, morphology, height, GPS and up to four base64 photos. 201 new; 200 when the plant ID was already uploaded (safe retry) |
+| GET | /api/mobile/photo.php?plantId=ID&index=0 | Photograph bytes of the caller's own record |
+
+Tokens are 256-bit random values; only their SHA-256 hashes are stored in `mobile_tokens`. They expire after `MOBILE_TOKEN_SECONDS` (default 12 hours), and deactivating an account stops them immediately. Integration test: `mobile/tests/backendApi.integration.mjs` (disposable database only).
+
 Errors: 400 malformed input, 401 invalid credentials/missing or expired session, 403 invalid CSRF/origin/role, 405 wrong method, 413 oversized input, 415 wrong content type, 429 rate limit, 500 generic server error. Login errors do not distinguish unknown accounts, disabled accounts, and wrong passwords. Five failures per normalized email within 15 minutes block further attempts until the window expires; `Retry-After` provides the delay. Periodically delete throttle rows older than a day using an operator job. Account-based limits can be used to temporarily deny another user's login; add edge/IP throttling for production.
 
 Idle timeout defaults to 30 minutes; absolute lifetime defaults to eight hours. Both must be positive integers in seconds. Login regenerates the Session ID. Each protected request reloads the account, so disabling a user or changing their role takes effect immediately. Existing sessions issued before this implementation must log in again.

@@ -15,6 +15,16 @@ CREATE TABLE IF NOT EXISTS auth_login_attempts (
     window_started BIGINT NOT NULL
 ) ENGINE=InnoDB;
 
+-- Mobile app sign-in. Only SHA-256 hashes of bearer tokens are stored.
+CREATE TABLE IF NOT EXISTS mobile_tokens (
+    token_hash CHAR(64) PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY mobile_token_user (user_id, expires_at),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS species (
     species_id INT AUTO_INCREMENT PRIMARY KEY,
     common_name VARCHAR(255) NOT NULL,
@@ -118,6 +128,8 @@ CREATE TABLE IF NOT EXISTS observations (
     family VARCHAR(100) NOT NULL DEFAULT '',
     field_notes TEXT NOT NULL,
     habitat TEXT NOT NULL,
+    morphology TEXT NULL,
+    conservation_status VARCHAR(40) NOT NULL DEFAULT '',
     height_m DECIMAL(8,2) NULL,
     latitude DECIMAL(10,7) NULL,
     longitude DECIMAL(10,7) NULL,
