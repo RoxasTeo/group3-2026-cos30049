@@ -48,7 +48,8 @@ export default function PlantRecordFormScreen() {
   function set(key: TextKey, value: string) { setForm(previous => ({ ...previous, [key]: value })); setError(''); }
   // New records started from the species reference return Home; edits return to the record.
   const backTo = editing ? 'record details' : params.reference ? 'Home' : 'Records';
-  function exit(go: () => void) { requestedExit.current = go; go(); }
+  // Remember the exit only when prevention will intercept it (and then consume it), so no stale exit lingers.
+  function exit(go: () => void) { requestedExit.current = dirty ? go : null; go(); }
   function leave() { router.replace(editing ? { pathname: '/plant/[plantId]', params: { plantId: id } } : params.reference ? '/navigation/botanist/home' : '/navigation/botanist/records'); }
   async function save(ready: boolean) {
     if (saving || finishedId || capturing) return;

@@ -36,6 +36,12 @@ export function ConfirmRecordAction({ visible, title, description, confirmLabel,
 }
 // Photos synced from another device are private: download them with the account token
 // (Image source headers are ignored on web) and show them as data URLs for this session.
+// Decoded photos are several MB each, so keep only the most recent few in memory.
+const CACHE_LIMIT = 8;
+function remember(cache: Map<string, string>, key: string, value: string) {
+  cache.delete(key); cache.set(key, value);
+  while (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value as string);
+}
 const remotePhotos = new Map<string, string>();
 function RemotePhoto({ plantId, index, label }: { plantId: string; index: number; label: string }) {
   const { session } = useSession();
@@ -48,7 +54,7 @@ function RemotePhoto({ plantId, index, label }: { plantId: string; index: number
     void fetch(url, { headers: { Authorization: `Bearer ${session.token}` } })
       .then(response => { if (!response.ok) throw new Error(); return response.blob(); })
       .then(blob => new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(blob); }))
-      .then(data => { remotePhotos.set(url, data); if (active) setUri(data); })
+      .then(data => { remember(remotePhotos, url, data); if (active) setUri(data); })
       .catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
   }, [url, uri, session]);
@@ -64,7 +70,7 @@ export function PhotoImage({ photo, style, label, resizeMode }: { photo: PlantPh
   useEffect(() => {
     if (!encrypted || decrypted.has(photo.uri as string)) return;
     let active = true;
-    void photoData(photo).then(data => { decrypted.set(photo.uri as string, data); if (active) setLoaded(n => n + 1); }).catch(() => undefined);
+    void photoData(photo).then(data => { remember(decrypted, photo.uri as string, data); if (active) setLoaded(n => n + 1); }).catch(() => undefined);
     return () => { active = false; };
   }, [photo, encrypted]);
   return uri ? <Image source={{ uri }} style={style} resizeMode={resizeMode} accessibilityLabel={label} /> : <View style={[style as object, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.soft }]}><RecordIcon name="photo" size={20} /></View>;
