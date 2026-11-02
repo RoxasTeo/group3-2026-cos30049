@@ -63,7 +63,8 @@ try {
     $stmt->execute([
         $user['id'], $tag, $tag, $speciesId,
         observationText($body, 'commonName', 120) ?: 'Unidentified plant', $scientific, observationText($body, 'family', 100),
-        observationText($body, 'description', 5000, true), observationText($body, 'habitatNotes', 2000),
+        protectData(observationText($body, 'description', 5000, true), 'observations.field_notes:' . $user['id'] . ':' . $tag),
+        protectData(observationText($body, 'habitatNotes', 2000), 'observations.habitat:' . $user['id'] . ':' . $tag),
         observationText($body, 'morphology', 5000), observationText($body, 'conservationStatus', 40),
         $height === '' ? null : (float) $height, $latitude, $longitude, $latitude === null ? null : $accuracy, $capturedAt ?: null,
         json_encode($photos, JSON_THROW_ON_ERROR), count($photos),

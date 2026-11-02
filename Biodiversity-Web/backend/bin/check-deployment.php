@@ -3,6 +3,8 @@
 require_once __DIR__ . '/../bootstrap.php';
 if (PHP_SAPI !== 'cli') exit(1);
 $failures = [];
+if (setting('DATA_ENCRYPTION_MAINTENANCE') === 'true') $failures[] = 'Disable maintenance mode before serving users.';
+try { sensitiveKeys(); } catch (Throwable $error) { $failures[] = 'A valid private data-encryption key outside Git is required.'; }
 if (setting('APP_ENV') !== 'production') $failures[] = 'APP_ENV must be production.';
 if (setting('COOKIE_SECURE', 'true') !== 'true') $failures[] = 'Secure session cookies are required.';
 if (!str_starts_with(setting('APP_ORIGIN'), 'https://')) $failures[] = 'APP_ORIGIN must use HTTPS.';
@@ -13,7 +15,10 @@ foreach (['SESSION_IDLE_SECONDS', 'SESSION_MAX_SECONDS'] as $name) {
 }
 try {
     $db = database();
-    $tables = ['users', 'auth_login_attempts', 'species', 'observations', 'observation_reviews', 'sensor_readings', 'threat_alerts', 'tracked_plants', 'tracking_devices', 'tracking_assignments'];
+    assertDatabaseKey($db);
+    $column = $db->query("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND COLUMN_NAME='email_lookup' AND IS_NULLABLE='NO'")->fetchColumn();
+    if (!$column) $failures[] = 'Sensitive-data migration has not been completed.';
+    $tables = ['users', 'auth_login_attempts', 'species', 'observations', 'observation_reviews', 'sensor_readings', 'threat_alerts', 'tracked_plants', 'tracking_devices', 'tracking_assignments', 'mobile_tokens', 'data_protection_state'];
     foreach ($tables as $table) {
         $stmt = $db->prepare('SELECT ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?');
         $stmt->execute([$table]);

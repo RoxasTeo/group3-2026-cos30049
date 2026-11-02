@@ -1,8 +1,8 @@
-> Current status (2026-11-01): application-level sensitive-field encryption is deferred until Mobile integration. Do not apply migration 005 or configure a new field-encryption key for a fresh installation. Previously encrypted databases require the [rollback guide](SETUP.md#appendix-previously-encrypted-databases).
+> Current status (2026-11-02): Web and mobile share this backend, and application-level field encryption is active for both. Every deployment needs a private `DATA_ENCRYPTION_KEY_FILE` ([SETUP section 3](SETUP.md#3-generate-a-private-encryption-key)); databases created before this version need the one-time encryption migration ([SETUP section 9](SETUP.md#9-existing-databases-and-later-updates)).
 
 # Web deployment and data protection
 
-This workspace is locally verified, not deployed or certified for production. Hardware, Mobile synchronization and cloud deployment remain separate; server-side IoT processing is implemented. Do not interpret a password hash as encryption of personal data.
+This workspace is locally verified, not deployed or certified for production. Mobile synchronization uses this backend (`/api/mobile`); hardware and cloud deployment remain separate; server-side IoT processing is implemented. Do not interpret a password hash as encryption of personal data.
 
 ## Database and API
 
@@ -27,4 +27,4 @@ Verify on the deployed HTTPS origin: login/logout and timeouts, cookie flags, no
 Tracking deployments must also apply migration 004 before using the updated monitoring APIs; follow `TRACKING.md`. Keep per-device upload keys private. Tested local functionality is not evidence of hardware or production readiness.
 
 
-Before using this version with a database previously encrypted by migration 005, complete the documented rollback using its original key. Do not apply the former encryption migration to a fresh database. Runtime credentials need only data read/write grants; schema migration and security fault-injection tests require separate operator privileges.
+Before using this version with a database created by an earlier version, apply SQL migration 006 and run the encryption migration with all writers stopped. Fresh databases use `schema.sql` and need no migration. Keep the key in the host's secret store, outside the web root and Git, with a separate secure backup. Runtime credentials need only data read/write grants; schema migration and security fault-injection tests require separate operator privileges.

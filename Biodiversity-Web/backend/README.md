@@ -2,7 +2,7 @@
 
 For the complete first-time installation and startup sequence, follow the [Web Setup Guide](../SETUP.md). The reference below focuses on authentication and API integration.
 
-Application-level sensitive-field encryption is deferred until Web and Mobile can adopt a shared data contract. No encryption key is needed for a fresh installation. Existing migration-005 databases must be converted using the [rollback instructions](../SETUP.md#appendix-previously-encrypted-databases) before running this version. Passwords remain bcrypt hashes.
+Sensitive fields (user names and emails, observation field notes and habitat, reviewer notes) are encrypted with AES-256-GCM using a private key outside Git (`DATA_ENCRYPTION_KEY_FILE`); see [SETUP section 3](../SETUP.md#3-generate-a-private-encryption-key). Web and mobile endpoints share `data_protection.php`. Databases created before this version must run `bin/encrypt-sensitive-data.php` once ([SETUP section 9](../SETUP.md#9-existing-databases-and-later-updates)). Passwords remain bcrypt hashes.
 
 PHP 8.1+ with PDO MySQL and MySQL/MariaDB. Serve **only `backend/public`** as the web root. Public registration provisions only the General User role. Officers and botanists are provisioned by an administrator; clients cannot select a privileged role during registration.
 

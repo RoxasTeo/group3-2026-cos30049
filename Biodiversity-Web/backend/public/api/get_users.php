@@ -15,10 +15,11 @@ try {
             is_active 
         FROM users 
         WHERE role != 'admin'
-        ORDER BY name ASC
     ");
     
-    $usersList = $stmt->fetchAll();
+    // Names are encrypted, so sort after decryption.
+    $usersList = array_map('revealUser', $stmt->fetchAll());
+    usort($usersList, fn($a, $b) => strcasecmp($a['name'], $b['name']));
     respond(200, $usersList);
 
 } catch (\PDOException $e) {

@@ -71,11 +71,25 @@ Replace the `SOURCE` path with your actual absolute path, use forward slashes, a
 
 The current schema includes all required tables for a fresh installation. Do not additionally run old migrations on that fresh database. It contains no preconfigured login accounts or demonstration records.
 
-## 3. Sensitive-Field Encryption Is Deferred
+## 3. Generate a Private Encryption Key
 
-No encryption key is required for a fresh installation. Web/Mobile field encryption will be designed together later. Passwords remain bcrypt hashes; names, emails and observation/review text currently use the original database format.
+Create a private directory **outside every Git repository**. This example uses your Windows application-data directory:
 
-If your database was encrypted by migration 005, stop here and follow [the rollback guide](#appendix-previously-encrypted-databases) using the original key before starting this version. Do not generate a replacement key or recreate accounts.
+```powershell
+$privateDir = Join-Path $env:LOCALAPPDATA 'NiahBiodiversity'
+New-Item -ItemType Directory -Force -Path "$privateDir\backups" | Out-Null
+$currentIdentity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+icacls $privateDir /inheritance:r /grant:r "${currentIdentity}:(OI)(CI)F" '*S-1-5-18:(OI)(CI)F'
+php Biodiversity-Web/backend/bin/generate-data-key.php "$privateDir\data.key"
+```
+
+The ACL command limits inherited access and grants the current Windows user and SYSTEM access. Confirm it succeeds before continuing. These instructions run PHP under your current user; a different service account needs appropriate explicit permissions.
+
+The generator creates a random key without printing it and refuses to overwrite an existing file. If `data.key` already exists, preserve it and establish which database it belongs to. Never replace the key of an encrypted database with a newly generated key.
+
+Keep a separate secure backup of the key. Losing it makes the encrypted fields and encrypted migration snapshots unrecoverable. Do not commit it or paste it into group chat.
+
+What is encrypted (AES-256-GCM, authenticated per record and field): user names and emails, observation field notes and habitat descriptions, and reviewer notes. Emails are found at sign-in through a keyed HMAC (`email_lookup`), so no plaintext or unkeyed hash of an email is stored. Passwords remain bcrypt hashes and mobile tokens are stored as SHA-256 hashes. Both the Web portal and the mobile API read the same encrypted columns through `backend/data_protection.php`.
 
 ## 4. Configure the Backend
 
@@ -96,19 +110,21 @@ DB_PASSWORD=REPLACE_WITH_YOUR_LOCAL_DB_PASSWORD
 APP_ORIGIN=http://localhost:5173
 APP_ENV=development
 COOKIE_SECURE=false
+DATA_ENCRYPTION_KEY_FILE=C:/Users/YOUR_WINDOWS_USER/AppData/Local/NiahBiodiversity/data.key
+DATA_ENCRYPTION_BACKUP_DIR=C:/Users/YOUR_WINDOWS_USER/AppData/Local/NiahBiodiversity/backups
+DATA_ENCRYPTION_MAINTENANCE=false
 ```
 
-Use your actual database port. The `.env` loader expects plain `KEY=value` entries, without quotes, variable substitution or inline comments. Environment variables override the file; clear stale database overrides if they refer to another setup.
+Use the absolute paths generated in section 3 and your actual database port. To see the directory path without exposing the key, run `$privateDir`. The `.env` loader expects plain `KEY=value` lines: no quotes, variable substitution or inline comments. Environment variables override `.env`; remove stale `DB_*` or `DATA_ENCRYPTION_*` overrides from your terminal if they point at another setup.
 
-Restrict access to `.env` to the runtime Windows user and SYSTEM:
+Protect the local configuration file too:
 
 ```powershell
-$currentIdentity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 icacls Biodiversity-Web/backend/.env /inheritance:r /grant:r "${currentIdentity}:F" '*S-1-5-18:F'
 git check-ignore Biodiversity-Web/backend/.env
 ```
 
-The final command should print the ignored path. Do not commit credentials or database dumps. `COOKIE_SECURE=false` is for local HTTP only; production needs HTTPS and secure cookies.
+The second command should print the `.env` path, confirming Git ignores it. Do not commit local credentials, keys, database dumps or backups. `COOKIE_SECURE=false` is only for local HTTP; production needs HTTPS and secure cookies.
 
 ## 5. Create Initial Accounts
 
@@ -201,7 +217,7 @@ IoT pages can open without physical devices. Actual readings and automated alert
 | `could not find driver` | Enable `pdo_mysql` in the PHP configuration used by the CLI; inspect `php --ini`, then restart PHP |
 | Database connection refused / access denied | Start MySQL; check host, port, database, password and the matching database-user grants |
 | Proxy error / backend unavailable | Keep Terminal A running; verify PHP's port matches `PHP_API_TARGET` or the default 8080 |
-| Generic 500 during login or registration | Inspect the PHP terminal privately; verify database credentials and schema; previously encrypted databases must complete the rollback first. Do not post credentials or sensitive logs |
+| Generic 500 during login or registration | Inspect the PHP terminal privately; verify database credentials, schema and `DATA_ENCRYPTION_KEY_FILE`; a database created before this version must complete the encryption migration in section 9 first. A key that does not match the database stops every request rather than reading wrong data. Do not post credentials or sensitive logs |
 | 403 on writes / login | Use `localhost` consistently and check exact `APP_ORIGIN`; reload the login page to obtain a current CSRF token |
 | Login returns 429 | Repeated failed attempts triggered throttling; wait for the indicated retry interval and use the correct account/password |
 | Port 5173 is occupied | Stop your own previous frontend process or deliberately configure another port and update `APP_ORIGIN` |
@@ -209,13 +225,35 @@ IoT pages can open without physical devices. Actual readings and automated alert
 
 ## 9. Existing Databases and Later Updates
 
-Do not create/import a fresh database over existing data. Back up the complete database first. Pulling Git updates code only and does not migrate records.
+Do not follow the fresh-database creation/import steps over an existing database. Back up the full database and preserve its matching key before upgrading. A Git pull updates code only; it does not migrate data.
 
-If migration 005 encryption was already applied, stop all writers and follow [the rollback guide](#appendix-previously-encrypted-databases), using the original matching key. The normal application no longer decrypts those fields. Keep the private key and old backups for recovery; they are not required by the converted runtime.
+For an older schema, inspect which changes are missing and apply only the corresponding SQL migrations 001-004 and 006 under `backend/migrations`, using a separate database operator account. Check existing indexes before applying 002/003. `CREATE TABLE IF NOT EXISTS` in the full schema does not upgrade old table definitions. Migration 005 is a CLI data migration, not an SQL file.
 
-For an older unencrypted schema, inspect missing changes and apply only the corresponding SQL migrations 001-004 and 006 under `backend/migrations`, using a separate database operator account. Check existing indexes before applying 002/003. Do not run the former encryption migration 005. `CREATE TABLE IF NOT EXISTS` does not upgrade existing table definitions.
+Databases created before this version store names, emails and notes in plaintext and must be encrypted once. Apply SQL migration 006 first, then, before the encryption migration:
 
-For later updates, preserve local changes, pull `main`, read migration notes, run `npm ci` in the frontend directory when dependencies change, and restart both services. Keep the normal runtime database account restricted to data access.
+1. Stop all application writers, including old backend instances.
+2. Configure the private key and encrypted snapshot directory. If the database is already encrypted, use its original key, including when importing another teammate's database copy; a new random key cannot decrypt it. Transfer matching keys only through an agreed secure channel, separately from Git.
+3. Set `DATA_ENCRYPTION_MAINTENANCE=true` in the actual backend `.env`.
+4. Use a private operator terminal for schema/migration privileges. Keep the `.env` runtime user restricted. For example, temporarily override database credentials only in this operator terminal:
+
+   ```powershell
+   $env:DB_USER = 'YOUR_DATABASE_OPERATOR'
+   $operatorSecret = Read-Host 'Database operator password' -AsSecureString
+   $env:DB_PASSWORD = [System.Net.NetworkCredential]::new('', $operatorSecret).Password
+   php Biodiversity-Web/backend/bin/encrypt-sensitive-data.php --check
+   php Biodiversity-Web/backend/bin/encrypt-sensitive-data.php --apply
+   php Biodiversity-Web/backend/bin/encrypt-sensitive-data.php --check
+   Remove-Item Env:DB_USER
+   Remove-Item Env:DB_PASSWORD
+   Remove-Variable operatorSecret
+   ```
+
+   Run each command in order and inspect its result. Initial `--check` returns 2 when migration is pending; the final check must return 0. If any migration step fails, keep maintenance mode enabled, clear temporary credentials, investigate and retry; do not reopen the app. The operator password exists temporarily in process memory/environment, so use a private terminal and do not print it.
+5. After successful verification, set maintenance mode to `false`, start services with the restricted runtime account and verify login/business operations.
+
+The migration preserves account IDs, password hashes, roles and relationships. Its encrypted sensitive-field snapshot is not a full database backup. If protected fields must be recovered from that snapshot, use `backend/bin/restore-sensitive-data.php <snapshot> --apply` with the same key and maintenance mode enabled.
+
+For subsequent updates, review migration notes first, pull `main` with local changes preserved, run `npm ci` in the frontend directory when dependencies change, and restart both services. Never replace a key merely because the code changed.
 
 ## Further Documentation
 
@@ -223,39 +261,3 @@ For later updates, preserve local changes, pull `main`, read migration notes, ru
 - [Production deployment requirements](DEPLOYMENT.md)
 
 This guide starts local development services only. It does not publish a public website or certify production security.
-
-## Appendix: Previously Encrypted Databases
-
-Do not simply switch code or generate a replacement key: this version expects the original field format. Convert the existing database using its matching original key first. Preserve IDs, password hashes, roles, decisions and relationships; do not recreate accounts or delete observations to bypass migration.
-
-1. Stop **all** backend instances and other writers. The current runtime no longer has the old encryption maintenance gate; setting a variable alone does not stop services.
-2. Back up the complete database to a restricted directory outside Git. Keep the original key and old encrypted snapshots. The rollback tool also creates and verifies a private encrypted sensitive-field snapshot, but this is not a full backup.
-3. Retain these settings in the local, ignored backend `.env` for the operator tool only:
-
-   ```dotenv
-   DATA_ENCRYPTION_KEY_FILE=C:/private/path/to/original/data.key
-   DATA_ENCRYPTION_BACKUP_DIR=C:/private/path/to/backups
-   DATA_ENCRYPTION_MAINTENANCE=true
-   ```
-
-   Paths must be absolute and outside every Git working tree. Do not overwrite an existing key or expose credentials. The normal Web runtime ignores these settings and does not load the legacy cipher helper.
-4. In a private PowerShell terminal at the repository root, temporarily use a database operator account with schema privileges. Keep the ordinary `.env` runtime account restricted:
-
-   ```powershell
-   $env:DB_USER = 'YOUR_DATABASE_OPERATOR'
-   $operatorSecret = Read-Host 'Database operator password' -AsSecureString
-   $env:DB_PASSWORD = [System.Net.NetworkCredential]::new('', $operatorSecret).Password
-   php Biodiversity-Web/backend/bin/rollback-sensitive-data.php --check
-   php Biodiversity-Web/backend/bin/rollback-sensitive-data.php --apply
-   php Biodiversity-Web/backend/bin/rollback-sensitive-data.php --check
-   Remove-Item Env:DB_USER
-   Remove-Item Env:DB_PASSWORD
-   Remove-Variable operatorSecret
-   ```
-
-   Run one command at a time and inspect its result. The initial check returns 2 when a verified conversion is pending; the final check must return 0. If any command fails, stop, clear temporary credentials, investigate and keep all writers offline. Do not start the unencrypted application against remaining ciphertext.
-5. The tool authenticates encrypted fields using the original key, verifies the private encrypted snapshot before writes, converts protected fields, restores VARCHAR user fields and the unique plaintext email index, and removes `email_lookup`/`data_protection_state`. Old keyed login-attempt counters are cleared once. IDs, password hashes and business relationships are preserved.
-6. MySQL schema changes are not fully transactional with field updates. If the schema stage fails, keep writers stopped and rerun with the original key after investigating. The tool accepts already-converted fields for retry, but never treats invalid ciphertext as plaintext. Restore the full pre-conversion backup with its matching code/key if recovery is needed.
-7. After the final check passes, set `DATA_ENCRYPTION_MAINTENANCE=false`, clear operator overrides and start the normal services. Verify existing login, registration, review, reports and maps. Keep the old private key and backups until recovery requirements have been resolved; do not commit or automatically delete them.
-
-`backend/bin/legacy-field-encryption.php` is CLI-only compatibility code for this rollback. It is not required by Web requests and does not enable field encryption. Encryption-generation, apply and encrypted restore commands have been removed from the active setup.

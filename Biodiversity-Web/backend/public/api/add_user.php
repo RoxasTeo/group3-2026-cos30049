@@ -27,8 +27,8 @@ if (!in_array($role, $valid_system_roles, true)) {
 $db = database();
 try {
     // Check if the email address is already registered inside your system
-    $stmt = $db->prepare("SELECT id FROM users WHERE email = ?");
-    $stmt->execute([$email]);
+    $stmt = $db->prepare("SELECT id FROM users WHERE email_lookup = ?");
+    $stmt->execute([emailLookup($email)]);
     if ($stmt->fetch()) {
         respond(409, ['error' => 'An account with this email address already exists.']);
     }
@@ -36,14 +36,13 @@ try {
     // Cryptographically hash the password matching your login.php password_verify match engine
     $password_hash = password_hash($password, PASSWORD_BCRYPT);
 
-    // 5. Execute safe prepared insertion query statement
-    $sql = "INSERT INTO users (name, email, password_hash, role, is_active) VALUES (?, ?, ?, ?, 1)";
-    $stmt = $db->prepare($sql);
-    $stmt->execute([$name, $email, $password_hash, $role]);
+    // Name and email are stored encrypted.
+    createProtectedUser($db, $name, $email, $password_hash, $role);
 
     respond(200, ['status' => 'success', 'message' => 'New user profile successfully registered.']);
 
 } catch (\PDOException $e) {
+    if (($e->errorInfo[1] ?? null) === 1062) respond(409, ['error' => 'An account with this email address already exists.']);
     error_log('User Insertion Error: ' . $e->getMessage());
     respond(500, ['error' => 'Internal database storage operational registry failure.']);
 }

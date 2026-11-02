@@ -1,7 +1,7 @@
-# Migration 005 Deferred: Sensitive-Field Encryption
+# 005 — Sensitive data encryption
 
-Application-level encryption is deferred until Web and Mobile adopt a shared design. Do not apply the former encryption migration to a fresh database. The current `schema.sql` uses the original field format and requires no encryption key.
+This is an operator data migration, not a SQL-only migration. Never replace email values or drop their old index without configuring the key, creating the verified encrypted backup and completing the data conversion.
 
-If migration 005 was already applied, retain the original key, stop all writers, back up the full database and follow [the rollback guide](../../SETUP.md#appendix-previously-encrypted-databases). The operator tool is `../bin/rollback-sensitive-data.php`.
+Follow [SETUP section 9](../../SETUP.md#9-existing-databases-and-later-updates). The implementation is `../bin/encrypt-sensitive-data.php`; it checks existing structure, preserves IDs and password hashes, and supports verification/retry. Fresh installations use the updated `schema.sql` instead.
 
-This is a data conversion, not a request to delete/recreate users or observations. Earlier encryption tests remain historical evidence only.
+Apply SQL migration 006 before this one. Application code and this migration must be released together, with all writers stopped. Back up the full database separately. The tool's encrypted snapshot contains only the protected records/fields needed by `../bin/restore-sensitive-data.php`.

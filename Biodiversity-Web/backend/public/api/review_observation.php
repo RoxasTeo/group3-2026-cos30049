@@ -30,7 +30,7 @@ try {
         $db->rollBack(); respond(409, ['error' => 'This observation changed or has already been reviewed. Reload it before continuing.']);
     }
     $stmt = $db->prepare('INSERT INTO observation_reviews (observation_id, reviewer_id, decision, notes, checks, observation_version, created_at) VALUES (?, ?, ?, ?, ?, ?, UTC_TIMESTAMP())');
-    $stmt->execute([$id, (int) $user['id'], $decision, $notes, json_encode($cleanChecks, JSON_THROW_ON_ERROR), $version]);
+    $stmt->execute([$id, (int) $user['id'], $decision, protectData($notes, reviewNotesContext(['observation_id' => $id, 'observation_version' => $version, 'reviewer_id' => $user['id']])), json_encode($cleanChecks, JSON_THROW_ON_ERROR), $version]);
     $stmt = $db->prepare('UPDATE observations SET status = ?, version = version + 1, reviewed_at = UTC_TIMESTAMP() WHERE id = ?');
     $stmt->execute([$decision, $id]);
     $db->commit();

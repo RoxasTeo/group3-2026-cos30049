@@ -1,7 +1,5 @@
 <?php
 declare(strict_types=1);
-// Legacy migration-005 cipher support for operator rollback only.
-if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 
 function privateDataPath(string $path, bool $directory = false): string {
     $resolved = realpath($path);
@@ -9,7 +7,7 @@ function privateDataPath(string $path, bool $directory = false): string {
         throw new RuntimeException('Private encryption file or directory is unavailable.');
     }
     $normal = strtolower(str_replace('\\', '/', $resolved));
-    $repository = strtolower(str_replace('\\', '/', (string) realpath(dirname(__DIR__, 3))));
+    $repository = strtolower(str_replace('\\', '/', (string) realpath(dirname(__DIR__, 2))));
     if ($normal === $repository || str_starts_with($normal, $repository . '/')) {
         throw new RuntimeException('Encryption material must be outside the repository and public directory.');
     }
@@ -64,6 +62,32 @@ function assertDatabaseKey(PDO $db, bool $initializeEmpty = false): void {
     }
     if (!$row || revealData($row['key_check'], 'database-key-check') !== 'niah-sensitive-data-v1') {
         throw new RuntimeException('Database encryption key does not match or protection is not initialized.');
+    }
+}
+
+function revealUser(array $user): array {
+    $user['name'] = revealData($user['name'], 'users.name:' . $user['id']);
+    $user['email'] = revealData($user['email'], 'users.email:' . $user['id']);
+    unset($user['email_lookup'], $user['password_hash']);
+    return $user;
+}
+
+function createProtectedUser(PDO $db, string $name, string $email, string $hash, string $role): int {
+    assertDatabaseKey($db, true);
+    $ownTransaction = !$db->inTransaction();
+    if ($ownTransaction) $db->beginTransaction();
+    try {
+        $stmt = $db->prepare('INSERT INTO users (name,email,email_lookup,password_hash,role,is_active) VALUES (?,?,?,?,?,1)');
+        // No plaintext enters SQL, including the short-lived inserted row.
+        $stmt->execute(['', '', emailLookup($email), $hash, $role]);
+        $id = (int) $db->lastInsertId();
+        $stmt = $db->prepare('UPDATE users SET name=?,email=? WHERE id=?');
+        $stmt->execute([protectData(trim($name), 'users.name:' . $id), protectData(strtolower(trim($email)), 'users.email:' . $id), $id]);
+        if ($ownTransaction) $db->commit();
+        return $id;
+    } catch (Throwable $error) {
+        if ($ownTransaction && $db->inTransaction()) $db->rollBack();
+        throw $error;
     }
 }
 
