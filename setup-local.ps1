@@ -9,11 +9,13 @@
     3. Creates or completes Biodiversity-Web/backend/.env without changing values you set.
     4. New database: creates it, the runtime account and the schema.
        Existing database: backs it up, applies missing migrations 006/007 and encrypts plaintext fields.
-    5. Creates the first accounts when the database has none.
+    5. Creates the first accounts when the database has none
+       (-Demo: shared demo accounts and sample data instead, for local development only).
     6. Installs Web and mobile dependencies.
 
   Run from the repository root:
     powershell -ExecutionPolicy Bypass -File .\setup-local.ps1
+    powershell -ExecutionPolicy Bypass -File .\setup-local.ps1 -Demo
 
   The MySQL administrator (root) password is asked for and used only by this script's
   child processes. Set NIAH_DB_ROOT_PASSWORD to skip the prompt (empty is allowed for XAMPP).
@@ -27,6 +29,7 @@ param(
     [string]$DbRootUser = 'root',
     [string]$PrivateDir = (Join-Path $env:LOCALAPPDATA 'NiahBiodiversity'),
     [switch]$SkipAccounts,
+    [switch]$Demo,
     [switch]$SkipNpm
 )
 
@@ -223,7 +226,11 @@ if ($userCount -gt 0) {
 
 # ---------------------------------------------------------------- 5. Accounts
 Step 'Accounts'
-if ($userCount -gt 0) {
+if ($Demo) {
+    & $php (Join-Path $backend 'bin\seed-demo.php') 2>&1 | ForEach-Object { Write-Host "    $_" }
+    if ($LASTEXITCODE -ne 0) { Fail 'Adding the demo accounts and sample data failed (see the message above).' }
+    Note 'Demo sign-in (local only): officer@niah.demo, botanist@niah.demo, admin@niah.demo - password NiahDemo@2026'
+} elseif ($userCount -gt 0) {
     Ok "$userCount account(s) already exist; none created."
 } elseif ($SkipAccounts) {
     Note 'Skipped. Create one later: php Biodiversity-Web/backend/bin/create-user.php EMAIL "NAME" conservation_officer'

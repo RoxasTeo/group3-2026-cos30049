@@ -34,7 +34,25 @@ The script asks for your MySQL `root` password (XAMPP default: press Enter) and,
 - **existing database:** saves a backup to `%LOCALAPPDATA%\NiahBiodiversity\backups`, applies migrations 006/007 and encrypts existing data;
 - runs `npm ci` for the Web portal and the mobile app, then prints the start commands.
 
-It is safe to run again at any time. Stop any running PHP server for the project before running it on an existing database. Options: `-DbName`, `-DbHost`, `-DbPort`, `-SkipNpm`, `-SkipAccounts`.
+It is safe to run again at any time. Stop any running PHP server for the project before running it on an existing database. Options: `-Demo`, `-DbName`, `-DbHost`, `-DbPort`, `-SkipNpm`, `-SkipAccounts`.
+
+### Demo accounts and sample data
+
+To skip the account prompts and start with data to look at, add `-Demo`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup-local.ps1 -Demo
+```
+
+| Role | Email | Password | Signs in to |
+| --- | --- | --- | --- |
+| Conservation officer | `officer@niah.demo` | `NiahDemo@2026` | Web and mobile |
+| Botanist | `botanist@niah.demo` | `NiahDemo@2026` | Web and mobile |
+| Admin | `admin@niah.demo` | `NiahDemo@2026` | Web |
+
+It also adds 5 species, 4 botanist observations (approved, changes requested and two pending), and 2 tracked plants with sensors, 24 hours of readings and alerts. Sample data is only added when the database has no species, observations or tracked plants; existing accounts and data are never changed. You can run it later on its own with `php Biodiversity-Web/backend/bin/seed-demo.php`.
+
+These passwords are public, so use them **only on your own computer**. The script refuses to run when `APP_ENV=production`.
 
 If the script stops with an error, read the message (it says what to fix) or follow the manual steps below.
 
