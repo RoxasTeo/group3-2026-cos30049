@@ -202,5 +202,6 @@ If PHP runs on another port, set it before starting Expo, e.g. `$env:EXPO_PUBLIC
 | `create-user.php` fails on a fresh database | Run step 2 first; the key file must exist. |
 | Expo Go: "Project is incompatible with this version of Expo Go" | Run `npm ci` in `mobile` after pulling; the project now uses SDK 58. |
 | Phone: stuck loading, or "Cannot reach the sign-in server" | Allow Node.js (port 8081) and PHP (port 8080) through Windows Firewall for **Private** networks, and use the same Wi-Fi. |
+| Mobile app in the browser (`localhost:8081`): "Cannot reach the sign-in server", PHP shows `403 OPTIONS` | Set `MOBILE_WEB_ORIGINS=http://localhost:8081` in `Biodiversity-Web/backend/.env` (the setup script now does this). No restart needed. |
 | Phone: "This account uses the Web portal" | Sign in with a botanist or conservation officer account. |
 | Photo upload fails with a size error | Use XAMPP's PHP (allows 40 MB) or start PHP with `php -d post_max_size=32M -S 0.0.0.0:8080 -t Biodiversity-Web/backend/public`. |

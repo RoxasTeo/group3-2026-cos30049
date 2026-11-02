@@ -126,6 +126,8 @@ $generated = [Convert]::ToBase64String($bytes) -replace '[^A-Za-z0-9]', 'x'
 $DbPassword = Default-EnvValue 'DB_PASSWORD' $generated
 Default-EnvValue 'APP_ORIGIN' 'http://localhost:5173' | Out-Null
 Default-EnvValue 'APP_ENV' 'development' | Out-Null
+# Lets the Expo web preview (npx expo start, then press w) call the mobile API; phones send no Origin.
+Default-EnvValue 'MOBILE_WEB_ORIGINS' 'http://localhost:8081' | Out-Null
 Default-EnvValue 'COOKIE_SECURE' 'false' | Out-Null
 Default-EnvValue 'DATA_ENCRYPTION_KEY_FILE' ($keyFile -replace '\\', '/') | Out-Null
 Default-EnvValue 'DATA_ENCRYPTION_BACKUP_DIR' ($backupDir -replace '\\', '/') | Out-Null
