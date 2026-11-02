@@ -62,7 +62,7 @@ onBeforeUnmount(() => { mounted = false; window.removeEventListener('beforeunloa
     <p v-if="loading" role="status">Loading observation…</p>
     <p v-if="error" ref="feedback" class="error observation-feedback" role="alert" tabindex="-1">{{ error }}</p>
     <p v-if="success" class="observation-success" role="status">{{ success }}</p>
-    <button v-if="!loading" class="button observation-reload" :disabled="busy" @click="load">Reload observation</button>
+    <button v-if="!loading" class="button primary observation-reload" :disabled="busy" @click="load">Reload observation</button>
     <template v-if="record && !loading">
       <div class="page-heading"><div><p class="eyebrow">{{ record.reference }} · {{ record.plant_tag }}</p><h1>{{ record.common_name }}</h1><p>Submitted by {{ record.submitter_name }} · {{ reviewDate(record.submitted_at) }}</p></div><span class="observation-status" :data-status="record.status">{{ record.status }}</span></div>
       <div class="observation-detail-grid"><div>

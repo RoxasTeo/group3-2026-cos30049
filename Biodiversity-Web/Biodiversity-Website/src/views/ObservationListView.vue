@@ -40,9 +40,9 @@ onBeforeUnmount(() => { generation++; controller?.abort(); clearTimeout(timer) }
 
 <template>
   <div class="observation-page">
-    <div class="page-heading"><div><p class="eyebrow">FIELD SUBMISSIONS / QUALITY REVIEW</p><h1>Observation review</h1><p>Check field evidence before accepting submitted plant observations.</p></div><button class="button" :disabled="loading" @click="load">{{ loading ? 'Loading…' : 'Refresh observations' }}</button></div>
+    <div class="page-heading"><div><p class="eyebrow">FIELD SUBMISSIONS / QUALITY REVIEW</p><h1>Observation review</h1><p>Check field evidence before accepting submitted plant observations.</p></div><button class="button primary" :disabled="loading" @click="load">{{ loading ? 'Loading…' : 'Refresh observations' }}</button></div>
     <div class="observation-tabs" role="group" aria-label="Submission status">
-      <button v-for="item in reviewStatuses" :key="item" class="button" :class="{ primary: status === item }" :aria-pressed="status === item" @click="status = item">{{ item }}<span v-if="data"> · {{ data.counts[item] }}</span></button>
+      <button v-for="item in reviewStatuses" :key="item" class="button" :class="{ primary: status === item }" :aria-pressed="status === item" @click="status = item">{{ item }}<span v-if="data" class="status-count"> · {{ data.counts[item] }}</span></button>
     </div>
     <form class="observation-filters" role="search" @submit.prevent="load">
       <label>Search observations<input v-model="search" type="search" maxlength="50" placeholder="Plant name, tag or observation ID"></label>
@@ -64,3 +64,9 @@ onBeforeUnmount(() => { generation++; controller?.abort(); clearTimeout(timer) }
     <p class="observation-hint">Approval accepts the observation. It does not automatically overwrite the species knowledge record.</p>
   </div>
 </template>
+
+<style>
+  .status-count {
+      margin-left: 3px;
+  } 
+</style>

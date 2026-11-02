@@ -113,7 +113,7 @@ onBeforeUnmount(() => { rememberDistribution(navigationState()); mounted = false
 
 <template>
   <div class="distribution-page">
-    <div class="page-heading"><div><p class="eyebrow">PLANT KNOWLEDGE / LOCATION EVIDENCE</p><h1>Species distribution</h1><p>Explore where plant observations have been recorded.</p></div><button class="button" :disabled="loading" @click="load">{{ loading ? 'Loading…' : 'Refresh locations' }}</button></div>
+    <div class="page-heading"><div><p class="eyebrow">PLANT KNOWLEDGE / LOCATION EVIDENCE</p><h1>Species distribution</h1><p>Explore where plant observations have been recorded.</p></div><button class="button primary" :disabled="loading" @click="load">{{ loading ? 'Loading…' : 'Refresh locations' }}</button></div>
     <form class="distribution-filters" role="search" @submit.prevent="load">
       <label>Search species or plant tag<input v-model="search" type="search" maxlength="50" placeholder="Common name, scientific name or tag"></label>
       <label>Species<select v-model="species"><option value="">All linked species</option><option v-if="species && !speciesOptions.some(item => String(item.species_id) === species)" :value="species">Species #{{ species }}</option><option v-for="item in speciesOptions" :key="item.species_id" :value="String(item.species_id)">{{ item.common_name }} · {{ item.scientific_name }}</option></select></label>

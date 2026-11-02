@@ -196,7 +196,7 @@ onBeforeUnmount(() => { mounted = false; controller?.abort(); clearInterval(time
             <option value="">Select plant</option>
             <option v-for="p in data.plants" :key="p.id" :value="String(p.id)">{{ p.plant_tag }} · {{ p.label }}
             </option>
-          </select></label><button class="button primary" :disabled="saving">Assign device</button></form>
+          </select></label><button class="button primary assigned-button" :disabled="saving">Assign device</button></form>
       <div class="table-scroll">
         <table>
           <thead>
@@ -446,6 +446,9 @@ summary {
   cursor: pointer;
 }
 
+.assigned-button {
+  margin-bottom: 15px;
+}
 @media(max-width:900px) {
   .tracking-stats {
     grid-template-columns: 1fr 1fr

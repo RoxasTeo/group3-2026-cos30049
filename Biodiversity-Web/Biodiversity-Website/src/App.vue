@@ -181,7 +181,7 @@ onUnmounted(() => {
 
         <RouterLink v-if="['admin', 'conservation_officer'].includes(currentUser?.role)" to="/observations" :class="{ selected: $route.path.startsWith('/observations') }" @click="handleNavigation($event, '/observations')"><span aria-hidden="true">✓</span>Observation review</RouterLink>
 
-        <RouterLink v-if="['admin', 'conservation_officer'].includes(currentUser?.role)" to="/reports" :class="{ selected: $route.path === '/reports' }" @click="handleNavigation($event, '/reports')"><span aria-hidden="true">▤</span>Biodiversity reports</RouterLink>
+        <RouterLink v-if="['admin', 'conservation_officer'].includes(currentUser?.role)" to="/reports" :class="{ selected: $route.path === '/reports' }" @click="handleNavigation($event, '/reports')"><span aria-hidden="true">◫</span>Biodiversity reports</RouterLink>
 
         <RouterLink v-if="['admin', 'conservation_officer'].includes(currentUser?.role)" to="/monitoring" :class="{
           selected: $route.path === '/monitoring',
