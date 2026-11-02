@@ -16,6 +16,7 @@ try {
             tracking_assignment_id,
             plant_id,
             alert_type,
+            severity,
             message,
             latitude,
             longitude,

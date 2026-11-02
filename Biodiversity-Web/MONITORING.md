@@ -1,5 +1,25 @@
 # Web monitoring integration
 
+## Current device contract (2026-11-02)
+
+This section supersedes older notes below that describe `plant_id` as a species ID. Apply migrations `006` and `007` to existing databases.
+
+`POST /api/add_sensor_reading.php` with header `X-Device-Key: <IOT_DEVICE_API_KEY>`:
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `plant_id` | yes | `tracked_plants.id` of the protected plant |
+| `temperature`, `humidity` | yes | °C (-50 to 100) and % (0 to 100) |
+| `soil_moisture_raw`, `soil_moisture_raw_percent` | no | ADC value 0-4095 and 0-100 % |
+| `distance_cm` | no | Ultrasonic distance. Enables the proximity rule and movement detection (sudden change from the previous recent reading) |
+| `latitude`, `longitude` | no, both or neither | Device GPS fix. Stored with `location_source = device`; otherwise the plant's registered coordinates are used (`registered`) |
+| `tracking_assignment_id` | no | Must be an active assignment of this plant |
+
+Every accepted reading runs the server-side rules below inside the same transaction; the response lists any `automatic_alerts` (type, severity, message). Existing payloads without the optional fields keep working. `POST /api/add_threat_alert.php` accepts an optional `severity` (`info`, `warning` default, `critical`) for device-detected events. `POST /api/submit_device_reading.php` is the per-device-key alternative described in `TRACKING.md`; it always reports distance and device GPS.
+
+The Monitoring dashboard shows alert severity, reading distance and whether the location came from device GPS.
+
+
 The existing database columns remain `sensor_readings.plant_id` and `threat_alerts.plant_id`. They currently reference `species.species_id` in the device ingestion validation, not a mobile plant tag. No column rename or data migration is needed. Both GET endpoints now explicitly select `plant_id AS species_id`, matching the dashboard contract. Reads require the shared live-account officer/admin guard.
 
 Both POST endpoints accept either `plant_id` or `species_id`, preserving existing device payloads. If both are provided they must be the same positive integer. The server still requires the private `X-Device-Key` and a configured `IOT_DEVICE_API_KEY`; no device key is shipped to the browser. The frontend calls only authenticated GET endpoints. Set the private server key when the device team is ready, rather than exposing it in Vite variables.

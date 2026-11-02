@@ -18,6 +18,8 @@ try {
             humidity,
             soil_moisture_raw,
             soil_moisture_raw_percent,
+            distance_cm,
+            location_source,
             latitude,
             longitude,
             recorded_at

@@ -540,6 +540,7 @@ function formatSoilMoisture(value) {
               <th>Plant ID</th>
               <th>Tracking Assignment ID</th>
               <th>Threat Type</th>
+              <th>Severity</th>
               <th>Message</th>
               <th>Date</th>
             </tr>
@@ -562,6 +563,12 @@ function formatSoilMoisture(value) {
 
               <td>{{ alert.alert_type }}</td>
 
+              <td>
+                <span :class="'severity-' + (alert.severity || 'warning')">
+                  {{ alert.severity || 'warning' }}
+                </span>
+              </td>
+
               <td>{{ alert.message }}</td>
 
               <td>
@@ -572,7 +579,7 @@ function formatSoilMoisture(value) {
 
             <tr v-if="!filteredAlerts.length">
 
-              <td colspan="6" class="empty">
+              <td colspan="7" class="empty">
                 No matching threat alerts found.
               </td>
 
@@ -621,6 +628,8 @@ function formatSoilMoisture(value) {
               <th>Humidity</th>
               <th>Soil Moisture Raw</th>
               <th>Soil Moisture %</th>
+              <th>Distance</th>
+              <th>Location</th>
               <th>Recorded At</th>
             </tr>
           </thead>
@@ -657,6 +666,14 @@ function formatSoilMoisture(value) {
               </td>
 
               <td>
+                {{ reading.distance_cm == null ? '—' : formatNumber(reading.distance_cm) + ' cm' }}
+              </td>
+
+              <td>
+                {{ reading.location_source === 'device' ? 'Device GPS' : 'Registered' }}
+              </td>
+
+              <td>
                 {{ formatDate(reading.recorded_at) }}
               </td>
 
@@ -664,7 +681,7 @@ function formatSoilMoisture(value) {
 
             <tr v-if="!recentReadings.length">
 
-              <td colspan="8" class="empty">
+              <td colspan="10" class="empty">
                 No sensor readings are available.
               </td>
 

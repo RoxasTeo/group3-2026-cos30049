@@ -33,24 +33,26 @@ function detectThreats(array $reading, ?array $previous, array $config): array {
         if ($value <= $config[$metric . '_low_warning']) $add($metric . '_low', $metric, $value <= $config[$metric . '_low_critical'] ? 'critical' : 'warning', "$metric $value $unit below configured range.");
         elseif ($value >= $config[$metric . '_high_warning']) $add($metric . '_high', $metric, $value >= $config[$metric . '_high_critical'] ? 'critical' : 'warning', "$metric $value $unit above configured range.");
     }
+    // Distance is optional: devices without an ultrasonic sensor skip proximity and movement rules.
+    if ($reading['distance_cm'] === null) return $alerts;
     if ($reading['distance_cm'] <= $config['proximity_warning_cm']) $add('proximity', 'proximity', $reading['distance_cm'] <= $config['proximity_critical_cm'] ? 'critical' : 'warning', 'Distance ' . $reading['distance_cm'] . ' cm within configured proximity threshold.');
-    if ($previous !== null) {
+    if ($previous !== null && $previous['distance_cm'] !== null) {
         $delta = abs($reading['distance_cm'] - (float) $previous['distance_cm']);
         if ($delta >= $config['distance_change_warning_cm']) $add('distance_change', 'motion', $delta >= $config['distance_change_critical_cm'] ? 'critical' : 'warning', "Distance changed by $delta cm since the previous recent reading; inspect sensor and surroundings.");
     }
     return $alerts;
 }
 
-// Caller holds the species row lock inside the reading transaction.
-function storeAutomaticThreats(PDO $db, int $speciesId, array $reading, array $alerts, array $config, ?int $assignmentId = null): array {
+// Caller runs this inside the reading transaction. $plantId is the tracked plant (tracked_plants.id).
+function storeAutomaticThreats(PDO $db, int $plantId, array $reading, array $alerts, array $config, ?int $assignmentId = null): array {
     $created = [];
     foreach ($alerts as $alert) {
         $severities = $alert['severity'] === 'critical' ? "('critical')" : "('warning','critical')";
         $stmt = $db->prepare("SELECT alert_id FROM threat_alerts WHERE plant_id = ? AND tracking_assignment_id <=> ? AND alert_type = ? AND severity IN $severities AND message LIKE ? AND created_at > DATE_SUB(NOW(), INTERVAL " . (int) $config['cooldown_seconds'] . ' SECOND) LIMIT 1');
-        $stmt->execute([$speciesId, $assignmentId, $alert['alert_type'], 'Automatic [' . $alert['rule'] . ']:%']);
+        $stmt->execute([$plantId, $assignmentId, $alert['alert_type'], 'Automatic [' . $alert['rule'] . ']:%']);
         if ($stmt->fetch()) continue;
         $stmt = $db->prepare('INSERT INTO threat_alerts (plant_id, tracking_assignment_id, alert_type, severity, message, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?)');
-        $stmt->execute([$speciesId, $assignmentId, $alert['alert_type'], $alert['severity'], $alert['message'], $reading['latitude'], $reading['longitude']]);
+        $stmt->execute([$plantId, $assignmentId, $alert['alert_type'], $alert['severity'], $alert['message'], $reading['latitude'], $reading['longitude']]);
         $created[] = ['alert_id' => (int) $db->lastInsertId(), ...$alert];
     }
     return $created;

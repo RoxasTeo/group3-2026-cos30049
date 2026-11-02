@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../../bootstrap.php';
+require_once __DIR__ . '/../../threat_detection.php';
 
 api(['POST']);
 
@@ -85,6 +85,39 @@ if ($soilPercent !== null) {
     }
 }
 
+// Optional ultrasonic distance (cm). Sudden changes are treated as movement near the plant.
+$distance = $data['distance_cm'] ?? null;
+
+if ($distance !== null) {
+    if (!is_numeric($distance) || (float) $distance < 0 || (float) $distance > 999999.99) {
+        respond(400, [
+            'error' => 'distance_cm must be between 0 and 999999.99.'
+        ]);
+    }
+
+    $distance = (float) $distance;
+}
+
+// Optional GPS fix from the device. Without it the plant's registered location is used.
+$deviceLatitude = $data['latitude'] ?? null;
+$deviceLongitude = $data['longitude'] ?? null;
+
+if (($deviceLatitude === null) !== ($deviceLongitude === null)) {
+    respond(400, [
+        'error' => 'Provide both latitude and longitude, or neither.'
+    ]);
+}
+
+if (
+    $deviceLatitude !== null &&
+    (!is_numeric($deviceLatitude) || abs((float) $deviceLatitude) > 90 ||
+     !is_numeric($deviceLongitude) || abs((float) $deviceLongitude) > 180)
+) {
+    respond(400, [
+        'error' => 'Invalid device GPS coordinates.'
+    ]);
+}
+
 // Optional tracking assignment ID
 $assignmentId = $data['tracking_assignment_id'] ?? null;
 
@@ -123,8 +156,9 @@ try {
         ]);
     }
 
-    $latitude = $plant['latitude'];
-    $longitude = $plant['longitude'];
+    $locationSource = $deviceLatitude === null ? 'registered' : 'device';
+    $latitude = $deviceLatitude === null ? $plant['latitude'] : (float) $deviceLatitude;
+    $longitude = $deviceLongitude === null ? $plant['longitude'] : (float) $deviceLongitude;
 
     // Verify that the assignment belongs to this plant
     if ($assignmentId !== null) {
@@ -148,6 +182,29 @@ try {
         }
     }
 
+    $config = threatConfiguration();
+    $pdo->beginTransaction();
+
+    // Most recent distance for this plant, used to detect sudden movement
+    $previousStmt = $pdo->prepare(
+        "SELECT distance_cm
+         FROM sensor_readings
+         WHERE plant_id = :plant_id
+           AND tracking_assignment_id <=> :assignment_id
+           AND distance_cm IS NOT NULL
+           AND recorded_at >= DATE_SUB(NOW(), INTERVAL " . (int) $config['baseline_max_age_seconds'] . " SECOND)
+         ORDER BY reading_id DESC
+         LIMIT 1
+         FOR UPDATE"
+    );
+
+    $previousStmt->execute([
+        ':plant_id' => $plantId,
+        ':assignment_id' => $assignmentId
+    ]);
+
+    $previous = $previousStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+
     // Insert sensor reading
     $stmt = $pdo->prepare(
         "INSERT INTO sensor_readings (
@@ -157,6 +214,8 @@ try {
             humidity,
             soil_moisture_raw,
             soil_moisture_raw_percent,
+            distance_cm,
+            location_source,
             latitude,
             longitude
         ) VALUES (
@@ -166,6 +225,8 @@ try {
             :humidity,
             :soil_raw,
             :soil_percent,
+            :distance,
+            :location_source,
             :latitude,
             :longitude
         )"
@@ -178,19 +239,49 @@ try {
         ':humidity' => $humidity,
         ':soil_raw' => $soilRaw,
         ':soil_percent' => $soilPercent,
+        ':distance' => $distance,
+        ':location_source' => $locationSource,
         ':latitude' => $latitude,
         ':longitude' => $longitude
     ]);
 
-    respond(201, [
-        'message' => 'Sensor reading saved successfully.',
-        'reading_id' => $pdo->lastInsertId(),
-        'plant_id' => $plantId,
+    $readingId = (int) $pdo->lastInsertId();
+
+    // Server-side threat detection: the device does not need to decide what is unusual
+    $reading = [
+        'temperature' => $temperature,
+        'humidity' => $humidity,
+        'distance_cm' => $distance,
         'latitude' => $latitude,
         'longitude' => $longitude
+    ];
+
+    $alerts = storeAutomaticThreats(
+        $pdo,
+        $plantId,
+        $reading,
+        detectThreats($reading, $previous, $config),
+        $config,
+        $assignmentId
+    );
+
+    $pdo->commit();
+
+    respond(201, [
+        'message' => 'Sensor reading saved successfully.',
+        'reading_id' => $readingId,
+        'plant_id' => $plantId,
+        'location_source' => $locationSource,
+        'latitude' => $latitude,
+        'longitude' => $longitude,
+        'automatic_alerts' => $alerts
     ]);
 
 } catch (PDOException $e) {
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+
     error_log('Sensor Reading Insert Error: ' . $e->getMessage());
 
     respond(500, [

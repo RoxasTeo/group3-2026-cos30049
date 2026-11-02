@@ -44,6 +44,15 @@ if ($message === '' || strlen($message) > 255) {
     ]);
 }
 
+// Optional severity reported by the device
+$severity = $data['severity'] ?? 'warning';
+
+if (!in_array($severity, ['info', 'warning', 'critical'], true)) {
+    respond(400, [
+        'error' => 'Severity must be info, warning or critical.'
+    ]);
+}
+
 // Optional tracking assignment ID
 $assignmentId = $data['tracking_assignment_id'] ?? null;
 
@@ -113,6 +122,7 @@ try {
             tracking_assignment_id,
             plant_id,
             alert_type,
+            severity,
             message,
             latitude,
             longitude
@@ -120,6 +130,7 @@ try {
             :assignment_id,
             :plant_id,
             :alert_type,
+            :severity,
             :message,
             :latitude,
             :longitude
@@ -130,6 +141,7 @@ try {
         ':assignment_id' => $assignmentId,
         ':plant_id' => $plantId,
         ':alert_type' => $alertType,
+        ':severity' => $severity,
         ':message' => $message,
         ':latitude' => $latitude,
         ':longitude' => $longitude

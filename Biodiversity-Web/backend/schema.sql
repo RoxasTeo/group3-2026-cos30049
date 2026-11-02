@@ -103,6 +103,10 @@ CREATE TABLE IF NOT EXISTS sensor_readings (
     humidity DECIMAL(5,2) NOT NULL,
     soil_moisture_raw INT NULL,
     soil_moisture_raw_percent DECIMAL(5,2) NULL,
+    -- Optional ultrasonic distance; sudden changes indicate movement near the plant.
+    distance_cm DECIMAL(8,2) NULL,
+    -- device: coordinates reported by the sensor's GPS; registered: the plant's recorded location.
+    location_source ENUM('device', 'registered') NOT NULL DEFAULT 'registered',
     latitude DECIMAL(10,7) NULL,
     longitude DECIMAL(10,7) NULL,
     recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -117,6 +121,7 @@ CREATE TABLE IF NOT EXISTS threat_alerts (
     FOREIGN KEY (tracking_assignment_id) REFERENCES tracking_assignments(id) ON DELETE RESTRICT,
     plant_id INT NOT NULL,
     alert_type VARCHAR(30) NOT NULL,
+    severity ENUM('info', 'warning', 'critical') NOT NULL DEFAULT 'warning',
     message VARCHAR(255) NOT NULL,
     latitude DECIMAL(10,7) NULL,
     longitude DECIMAL(10,7) NULL,
