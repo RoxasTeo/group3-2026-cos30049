@@ -36,7 +36,9 @@ export default function PlantRecordFormScreen() {
   }, [finishedId]);
   const locked = (editing && (!existing || existing.status !== 'Draft')) || (!editing && !!existing);
   function set(key: TextKey, value: string) { setForm(previous => ({ ...previous, [key]: value })); setError(''); }
-  function leave() { router.replace(editing ? { pathname: '/plant/[plantId]', params: { plantId: id } } : '/navigation/botanist/records'); }
+  // New records started from the species reference return Home; edits return to the record.
+  const backTo = editing ? 'record details' : params.reference ? 'Home' : 'Records';
+  function leave() { router.replace(editing ? { pathname: '/plant/[plantId]', params: { plantId: id } } : params.reference ? '/navigation/botanist/home' : '/navigation/botanist/records'); }
   async function save(ready: boolean) {
     if (saving || finishedId || capturing) return;
     setSaving(true); setError('');
@@ -47,7 +49,7 @@ export default function PlantRecordFormScreen() {
     return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput accessibilityLabel={label} value={form[key]} keyboardType={key === 'heightMetres' ? 'decimal-pad' : 'default'} onChangeText={value => set(key, value)} placeholder={placeholder} placeholderTextColor={colors.muted} multiline={multiline} maxLength={multiline ? 2000 : 140} autoCapitalize={key === 'scientificName' ? 'none' : 'sentences'} style={[styles.input, multiline && styles.multiline]} /></View>;
   }
   return <RecordFrame onTab={destination => router.replace(destination)}><KeyboardAvoidingView style={ui.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><RecordScroll>
-    <RecordBack label={editing ? 'record details' : 'Records'} onPress={leave} />
+    <RecordBack label={backTo} onPress={leave} />
     {locked ? <><Text accessibilityRole="header" style={ui.title}>{existing ? 'Record is read-only' : 'Draft not found'}</Text><Text style={ui.paragraph}>Only existing drafts can be edited. A new record must use a unique plant ID.</Text><RecordButton label="Back to Records" onPress={() => router.replace('/navigation/botanist/records')} /></> : <>
       <View><Text style={ui.eyebrow}>FIELD DOCUMENTATION</Text><Text accessibilityRole="header" style={ui.title}>{editing ? 'Continue draft' : 'New plant record'}</Text><Text style={ui.subtitle}>Save incomplete observations as a draft.</Text></View>
       <View style={styles.field}><Text style={styles.label}>Plant / temporary ID</Text><Text selectable style={[styles.input, styles.readonly]}>{id}</Text><Text style={ui.caption}>Assigned once. An unidentified plant can keep a temporary ID.</Text></View>
