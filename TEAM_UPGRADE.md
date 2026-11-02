@@ -1,6 +1,6 @@
 # Team upgrade guide: mobile + PHP integration (November 2026)
 
-This update connects the mobile app to the **same PHP backend and MySQL database as the Web portal**, turns on **field encryption** on the server and the phone, and completes the **IoT** scope items. After you pull it, your local setup will not start until you do the steps below once (about 15 minutes).
+This update connects the mobile app to the **same PHP backend and MySQL database as the Web portal**, turns on **field encryption** on the server and the phone, and completes the **IoT** scope items. After you pull it, your local setup will not start until you run the setup script (or the manual steps) once.
 
 Full reference: [`Biodiversity-Web/SETUP.md`](Biodiversity-Web/SETUP.md) and [`mobile/README.md`](mobile/README.md).
 
@@ -15,7 +15,30 @@ Full reference: [`Biodiversity-Web/SETUP.md`](Biodiversity-Web/SETUP.md) and [`m
 | IoT | Readings may include `distance_cm` (movement/proximity) and device GPS; the server raises **automatic alerts** with severity. Existing ESP32 payloads still work. |
 | Database | New migrations `006` (mobile) and `007` (IoT), plus a one-time encryption migration for existing data. |
 
-## Steps for everyone
+## Quick setup (recommended)
+
+Start MySQL (for XAMPP: XAMPP Control Panel → MySQL → Start), then from the repository root:
+
+```powershell
+git switch main
+git pull
+powershell -ExecutionPolicy Bypass -File .\setup-local.ps1
+```
+
+The script asks for your MySQL `root` password (XAMPP default: press Enter) and, on a new database, the officer/botanist/admin accounts to create. It then:
+
+- finds PHP, MySQL and Node (XAMPP and MySQL Server installs included) and checks PHP extensions;
+- creates your private encryption key in `%LOCALAPPDATA%\NiahBiodiversity` (never overwrites an existing one);
+- creates or completes `Biodiversity-Web/backend/.env` without changing values you already set;
+- **new database:** creates `biodiversity_db`, a read/write runtime account and the schema;
+- **existing database:** saves a backup to `%LOCALAPPDATA%\NiahBiodiversity\backups`, applies migrations 006/007 and encrypts existing data;
+- runs `npm ci` for the Web portal and the mobile app, then prints the start commands.
+
+It is safe to run again at any time. Stop any running PHP server for the project before running it on an existing database. Options: `-DbName`, `-DbHost`, `-DbPort`, `-SkipNpm`, `-SkipAccounts`.
+
+If the script stops with an error, read the message (it says what to fix) or follow the manual steps below.
+
+## Manual steps
 
 Run commands from the repository root in PowerShell unless stated otherwise.
 

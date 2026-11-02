@@ -9,7 +9,8 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 254 || trim($
     exit(1);
 }
 fwrite(STDERR, "Password (12-72 bytes, input may be visible): ");
-$password = rtrim(fgets(STDIN) ?: '', "\r\n");
+// PowerShell can prefix piped input with a UTF-8 byte-order mark; it is never part of the password.
+$password = preg_replace('/^\xEF\xBB\xBF/', '', rtrim(fgets(STDIN) ?: '', "\r\n"));
 if (strlen($password) < 12 || strlen($password) > 72) {
     fwrite(STDERR, "Password must be 12-72 bytes.\n"); exit(1);
 }
