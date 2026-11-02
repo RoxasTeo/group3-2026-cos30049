@@ -13,6 +13,7 @@ function verifyCredentials(PDO $db, array $body): array {
     if (strlen($email) > 254 || !filter_var($email, FILTER_VALIDATE_EMAIL) || $password === '' || strlen($password) > 72) {
         respond(400, ['error' => 'Invalid email or password format']);
     }
+    requireFirstAccount($db);
     assertDatabaseKey($db);
     // Keyed lookup: neither the email nor an unkeyed hash of it is stored.
     $key = emailLookup($email);

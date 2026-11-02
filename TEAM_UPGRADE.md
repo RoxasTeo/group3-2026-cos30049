@@ -176,6 +176,9 @@ If PHP runs on another port, set it before starting Expo, e.g. `$env:EXPO_PUBLIC
 | Symptom | Fix |
 | --- | --- |
 | Every request returns 500 / "Internal server error" | Check `DATA_ENCRYPTION_KEY_FILE` points to your key (absolute path, outside the repository) and that step 3 is done. The PHP terminal shows the exact error. |
+| Login says "No accounts exist yet" | Create the first account from the repository root: `C:\xampp\php\php.exe Biodiversity-Web/backend/bin/create-user.php you@example.com "Your Name" conservation_officer` |
+| `php` is not recognized | Use the full path `C:\xampp\php\php.exe` instead of `php`, or add `C:\xampp\php` to PATH and reopen the terminal. |
+| Setup stops with "schema.sql did not create these tables" | MySQL itself is damaged (common with XAMPP after an unclean shutdown). Check `C:\xampp\mysql\data\mysql_error.log` for InnoDB errors, back up `C:\xampp\mysql\data`, repair or reinstall MySQL, then run the script again. |
 | 503 "Data protection maintenance in progress" | Set `DATA_ENCRYPTION_MAINTENANCE=false` and restart PHP. |
 | "Database encryption key does not match" | The database was encrypted with a different key (for example a teammate's dump). Use the matching key or start fresh (Option A). |
 | `create-user.php` fails on a fresh database | Run step 2 first; the key file must exist. |

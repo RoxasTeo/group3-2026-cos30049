@@ -29,6 +29,7 @@ if (strlen($password) < 12 || strlen($password) > 72) {
 
 try {
     $db = database();
+    requireFirstAccount($db);
     assertDatabaseKey($db);
 
     // Confirm email uniquely satisfies system structural expectations

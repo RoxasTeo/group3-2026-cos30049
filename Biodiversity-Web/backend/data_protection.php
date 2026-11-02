@@ -53,6 +53,13 @@ function emailLookup(string $email): string {
     return hash_hmac('sha256', strtolower(trim($email)), sensitiveKeys()['lookup']);
 }
 
+// Encryption is initialised by the first CLI-created account; until then nobody can sign in.
+function requireFirstAccount(PDO $db): void {
+    if (!(int) $db->query('SELECT EXISTS(SELECT 1 FROM users)')->fetchColumn()) {
+        respond(503, ['error' => 'No accounts exist yet. On the server, create the first one: php Biodiversity-Web/backend/bin/create-user.php EMAIL "NAME" conservation_officer']);
+    }
+}
+
 function assertDatabaseKey(PDO $db, bool $initializeEmpty = false): void {
     $row = $db->query('SELECT key_check FROM data_protection_state WHERE id=1')->fetch();
     if (!$row && $initializeEmpty && PHP_SAPI === 'cli' && (int) $db->query('SELECT COUNT(*) FROM users')->fetchColumn() === 0) {

@@ -243,8 +243,24 @@ if ($userCount -gt 0) {
         $plain = $null
     }
 }
+
+# ---------------------------------------------------------------- Readiness check
+# Connect exactly as the backend will (.env runtime account and key), so problems surface here, not as a 500 on login.
+Step 'Checking the backend can use the database'
+$accounts = [int]((Sql "SELECT COUNT(*) FROM users" $DbName) | Select-Object -First 1)
 Remove-Item Env:MYSQL_PWD -ErrorAction SilentlyContinue
 $rootPassword = $null
+$probe = Join-Path ([System.IO.Path]::GetTempPath()) 'niah-backend-check.php'
+[System.IO.File]::WriteAllText($probe, '<?php require $argv[1] . "/bootstrap.php"; $db = database(); $db->query("SELECT 1 FROM users LIMIT 1"); if ((int) $db->query("SELECT COUNT(*) FROM users")->fetchColumn() > 0) assertDatabaseKey($db); echo "ready";', $utf8)
+$result = "$(& $php $probe $backend 2>&1)"
+Remove-Item $probe -ErrorAction SilentlyContinue
+if ($result -ne 'ready') { Fail "The backend cannot use the database with the settings in .env: $result" }
+Ok 'Runtime account, tables and encryption key all work'
+if ($accounts -eq 0) {
+    $hint = "`"$php`" Biodiversity-Web/backend/bin/create-user.php you@example.com `"Your Name`" conservation_officer"
+    if ($SkipAccounts) { Note "No accounts yet; nobody can sign in until you run: $hint" }
+    else { Fail "No accounts were created, so nobody can sign in. Run: $hint" }
+} else { Ok "$accounts account(s) can sign in" }
 
 # ---------------------------------------------------------------- 6. Dependencies
 if (-not $SkipNpm) {
