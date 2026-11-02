@@ -2,7 +2,11 @@
 
 Express 5 API with a MySQL production adapter and a persistent SQLite demo mode. Node.js 24+ is required.
 
-## Run now without installing a database
+## Current shared MySQL setup
+
+MySQL is configured on port 13306 and the API uses port 3001. Run `npm.cmd run db:start` in one terminal and `npm.cmd run start:lan` in another. See [DATABASE.md](DATABASE.md) for mobile setup and future web integration.
+
+## Optional standalone demo
 
 ```powershell
 npm.cmd ci
@@ -13,7 +17,7 @@ Use `npm.cmd run demo` for localhost-only testing. Do not run both on port 3000.
 
 Demo accounts use password `NiahDemo2026!`: `botanist@example.com` (four initial records), `field.botanist@example.com` (two), and `officer@example.com` (access to all six). Every demo submission remains marked fictional. These credentials must never be used for production.
 
-Demo records and normalized photos persist in ignored `.local/demo.sqlite`. Do not delete it if you need your test uploads. JWT_SECRET from `.env` is used when present; without it, demo generates a temporary secret and existing tokens stop working after restart. A local `.env` is already configured in this checkout. No real MySQL database is currently connected; prior initialization logs in `.mysql/` remain unchanged.
+Demo records and normalized photos persist in ignored `.local/demo.sqlite`. Do not delete it if you need your test uploads. JWT_SECRET from `.env` is used when present; without it, demo generates a temporary secret and existing tokens stop working after restart. A local `.env` is already configured in this checkout. Shared MySQL is now configured as described above. Prior initialization logs in `.mysql/` remain unchanged.
 
 ## 1. Configure MySQL
 
@@ -81,6 +85,6 @@ npm.cmd test
 npm.cmd run check
 ```
 
-Tests cover authentication, ownership, roles, validation, image upload, duplicate-safe retry, SQLite restart persistence and rate limits. MySQL integration and physical phone acceptance remain to be tested. The local demo is not a hosted cloud deployment. Production still requires an accessible HTTPS host, a configured MySQL server, real accounts and backups. Existing MySQL schema stores new fields/photos in payload JSON, so no destructive migration is required.
+Tests cover authentication, ownership, roles, validation, image upload, duplicate-safe retry, SQLite restart persistence and rate limits. MySQL integration is checked by `npm.cmd run test:mysql`; physical phone acceptance remains to be tested. The local demo is not a hosted cloud deployment. Production still requires an accessible HTTPS host, a configured MySQL server, real accounts and backups. Existing MySQL schema stores new fields/photos in payload JSON, so no destructive migration is required.
 
 Not included: server updates/deletes, conflict merging, officer approvals, background sync, account recovery, refresh-token revocation, reporting or IoT endpoints. Keep `.env`, `.local/`, `.mysql/` and database credentials out of Git.

@@ -1,3 +1,4 @@
+import { readAccountRecords } from '../services/accountRecordsCache';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type PropsWithChildren } from 'react';
 import { Text, View } from 'react-native';
 import { resetPlantRecords, openPlantRecords, replaceServerRecords, recordsRevision } from '../data/plantRecords';
@@ -8,18 +9,7 @@ import type { Session } from './loginRequest';
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 const SessionContext = createContext<{ session: Session | null; signIn: (value: Session) => Promise<void>; signOut: () => void; recordsState: LoadState; recordsError: string; refreshRecords: () => Promise<void> } | null>(null);
 function readAccount(value: Session) {
-  const key = `niah.records.v1:${apiBaseUrl()}:${value.user.id}:${value.user.email}`;
-  let raw = readRecords(key);
-  const previous = previousApiBaseUrl();
-  if (!raw && previous) {
-    raw = readRecords(`niah.records.v1:${previous}:${value.user.id}:${value.user.email}`);
-    if (raw) {
-      const stored = JSON.parse(raw);
-      if (!Array.isArray(stored.records) || !Array.isArray(stored.remoteIds)) throw new Error('Cannot migrate saved records. Original data was kept.');
-      writeRecords(key, raw); // Copy before use; keep the original cache as a fallback.
-    }
-  }
-  return { key, raw };
+  return readAccountRecords(value.user, apiBaseUrl(), previousApiBaseUrl(), { read: readRecords, write: writeRecords });
 }
 function openAccount(value: Session) {
   const { key, raw } = readAccount(value);

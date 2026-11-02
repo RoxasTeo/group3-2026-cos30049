@@ -2,16 +2,18 @@
 
 Expo SDK 57, React Native, TypeScript and Expo Router. Edit this folder in Visual Studio Code.
 
+**New teammate? Start with the [complete setup guide](../README.md).** It covers cloning, installing dependencies, creating environment files, initializing MySQL, seeding accounts, phone setup and troubleshooting. The instructions below assume first-time setup is complete.
+
 ## Start on your phone
 
-1. In `backend`, run `npm.cmd run demo:lan` (persistent fictional data; no MySQL installation required).
+1. In `backend`, run `npm.cmd run db:start` and keep the terminal open. In a second backend terminal run `npm.cmd run start:lan`. See `../backend/DATABASE.md`.
 2. In `mobile`, run `npx.cmd expo start --clear` and scan its QR with a compatible Expo Go client. The Expo SDK and Expo Go version must match. Existing custom development builds must be rebuilt to include the newly installed native modules.
 3. Keep your computer and phone on the same trusted Wi-Fi. Sign in with `botanist@example.com` / `NiahDemo2026!`.
 4. Open Home → New plant record. Add observations, photos and GPS. Save a draft or mark it ready, then open Sync → Sync all records.
 
-Development infers your computer's address from Expo. Override with `EXPO_PUBLIC_API_URL=http://YOUR_COMPUTER_WIFI_IP:3000/api` in `.env.local` if needed, then restart Expo. Phone localhost means the phone, not the computer. Expo tunnel does not tunnel the API. For browser preview use `npm.cmd run web` and include that browser origin in backend `CORS_ORIGINS`. Release builds require an explicit HTTPS API URL; never put database passwords or JWT secrets in mobile configuration.
+Development infers your computer's address from Expo; this checkout sets EXPO_PUBLIC_API_PORT=3001 for the shared MySQL API. Override with `EXPO_PUBLIC_API_URL=http://YOUR_COMPUTER_WIFI_IP:3001/api` in `.env.local` if needed, then restart Expo. Phone localhost means the phone, not the computer. Expo tunnel does not tunnel the API. For browser preview use `npm.cmd run web` and include that browser origin in backend `CORS_ORIGINS`. Release builds require an explicit HTTPS API URL; never put database passwords or JWT secrets in mobile configuration.
 
-Demo accounts: the first Botanist initially sees four samples, `field.botanist@example.com` sees two, and `officer@example.com` can access all six through the API. All use the development password above. New uploads increase those counts. Demo observations and submissions are labelled fictional.
+Demo accounts: the first Botanist initially sees four samples, `field.botanist@example.com` sees two, and `officer@example.com` can access all six through the API. All use the development password above. New uploads increase those counts. Imported demo observations are labelled fictional. New submissions to MySQL are normal records; standalone demo mode labels all submissions fictional.
 
 ## Implemented Botanist workflow
 
@@ -30,7 +32,7 @@ The reference uses NParks Flora & Fauna Web summaries: [Bird’s nest fern](http
 
 ## Remaining deployment and acceptance work
 
-The local API works with persistent SQLite demo storage; the production MySQL adapter is retained. A hosted central API/MySQL database, HTTPS configuration and real accounts are still needed for cloud deployment. Real MySQL integration has not been exercised here. Conservation Officer feature tabs remain outside this Botanist workflow. There is no background sync, automatic species identification, server record editing, account recovery or officer approval workflow.
+The shared local API now uses MySQL; standalone SQLite demo mode remains available. A hosted central API/MySQL database, HTTPS configuration and real accounts are still needed for cloud deployment. Real MySQL integration tests verify uploads and authorized web-client reads. Conservation Officer feature tabs remain outside this Botanist workflow. There is no background sync, automatic species identification, server record editing, account recovery or officer approval workflow.
 
 Saved local data is not a backup: uninstalling the app, clearing app/site storage or losing the device removes unsynced fieldwork. Browser storage capacity is smaller than native SQLite and may reject large photo collections. Removed local photo files are not automatically garbage-collected yet. Server images are resized to a maximum 1600 × 1600 bounding box and stored as JPEG data in the authenticated record; originals are not archived on the server.
 
