@@ -2,6 +2,8 @@
 
 Integrated Web and mobile workspace for local development. Both clients use one PHP backend and MySQL database. Hardware firmware and cloud deployment are separate work.
 
+> **Pulled the November 2026 mobile/PHP integration?** Follow [TEAM_UPGRADE.md](TEAM_UPGRADE.md) once: it adds a required encryption key and database migrations.
+
 ## Layout
 
 - `Biodiversity-Web/Biodiversity-Website`: Vue frontend.
