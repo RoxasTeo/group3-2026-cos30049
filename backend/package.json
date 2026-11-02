@@ -1,0 +1,38 @@
+{
+  "name": "niah-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch src/server.js",
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "db:init": "node --env-file-if-exists=.env scripts/init-db.js",
+    "user:create": "node --env-file-if-exists=.env scripts/create-user.js",
+    "test": "node --test",
+    "check": "node --check src/app.js && node --check src/repository.js && node --check src/server.js",
+    "demo": "node --env-file-if-exists=.env src/server.js --demo",
+    "demo:lan": "node --env-file-if-exists=.env src/server.js --demo-lan",
+    "db:start": "node scripts/local-mysql.js start",
+    "db:stop": "node scripts/local-mysql.js stop",
+    "db:status": "node scripts/local-mysql.js status",
+    "start:lan": "node --env-file-if-exists=.env src/server.js --lan",
+    "db:seed:dev": "node --env-file-if-exists=.env scripts/seed-development.js",
+    "test:mysql": "node --env-file-if-exists=.env scripts/test-mysql.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.24.6",
+    "sharp": "^0.35.5",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "supertest": "^7.3.1"
+  }
+}
