@@ -10,3 +10,4 @@ export async function photoData(photo: PlantPhoto): Promise<string> {
 export async function preservePhotos(photos: PlantPhoto[]): Promise<PlantPhoto[]> {
   return Promise.all(photos.map(async photo => ({ ...photo, uri: await photoData(photo) })));
 }
+export const isEncryptedPhoto = (_photo: PlantPhoto) => false;

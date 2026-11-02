@@ -25,7 +25,8 @@ Botanist:
 - Home counts, recent records, scan and species-reference shortcuts.
 - Create, edit and delete drafts; scientific name, family, height, morphology, conservation status, field observations and habitat notes.
 - Camera/gallery attachments (up to four; JPEG/PNG/WebP up to 5 MB each) and foreground GPS with accuracy display.
-- SQLite offline records on native; localStorage for browser preview. Native photos are copied into the app's document directory. Full storage errors are surfaced without claiming the save succeeded.
+- SQLite offline records on native; localStorage for browser preview. Full storage errors are surfaced without claiming the save succeeded.
+- On-device encryption: offline records (GPS, notes, identifications) and saved photos are encrypted with AES-256-GCM using a random per-installation key kept only in the platform keychain (SecureStore). Records saved by earlier versions are re-encrypted on first open. Browser previews have no keychain and are not encrypted.
 - Offline sessions restore after restart. First sign-in requires a connection. Expired tokens allow local fieldwork but require signing out/in before uploading.
 - Sync uploads ready/failed records and photos one at a time to `/api/mobile/plants.php`. The plant ID is the client reference, so a retry after a lost response returns the stored record rather than a duplicate. A scientific name matching a knowledge-system species links the observation to it automatically.
 - Synced records show the officer's review decision (Pending, Changes requested, Approved, Rejected) and reviewer notes. Photos of records synced from another device are downloaded with the account token.

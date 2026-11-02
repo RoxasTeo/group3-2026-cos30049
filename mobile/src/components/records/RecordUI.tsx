@@ -5,9 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import RoleNavigationBar from '../RoleNavigationBar';
 import { roleNavigation } from '../../navigation/roles';
-import type { PlantRecord, RecordStatus } from '../../data/plantRecords';
+import type { PlantPhoto, PlantRecord, RecordStatus } from '../../data/plantRecords';
 import { useSession } from '../../auth/SessionProvider';
 import { apiBaseUrl } from '../../auth/apiConfig';
+import { isEncryptedPhoto, photoData } from '../../services/photoStorage';
+import type { ImageStyle, StyleProp } from 'react-native';
 
 export const colors = { forest: '#173F35', cream: '#FAF9F4', ink: '#203C33', muted: '#64756C', lime: '#D8E8AD', border: '#DCE2D9', soft: '#E8F0E2', paper: '#FFFFFF', red: '#A1382C' };
 const paths = { back: 'M15 5l-7 7 7 7M8 12h13', plus: 'M12 4v16M4 12h16', search: 'M20 20l-5-5M17 10a7 7 0 11-14 0 7 7 0 0114 0', leaf: 'M5 21C5 12 10 5 21 3c0 12-5 17-12 15M5 21L15 10', photo: 'M3 4h18v16H3ZM3 16l5-5 4 4 3-3 6 6M8 8h.01', pin: 'M12 22S4 15 4 9a8 8 0 0116 0c0 6-8 13-8 13ZM15 9a3 3 0 11-6 0 3 3 0 016 0', trash: 'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7', check: 'M4 12l5 5L20 6', clock: 'M12 7v5l3 2M22 12a10 10 0 11-20 0 10 10 0 0120 0', edit: 'M4 16l-1 5 5-1L21 7l-5-5ZM14 4l6 6', alert: 'M12 8v5M12 17h.01M22 12a10 10 0 11-20 0 10 10 0 0120 0' };
@@ -53,8 +55,22 @@ function RemotePhoto({ plantId, index, label }: { plantId: string; index: number
   if (uri) return <Image source={{ uri }} style={ui.photo} accessibilityLabel={label} />;
   return <View style={ui.photoEmpty}><RecordIcon name="photo" size={24} /><Text style={ui.caption}>{failed ? 'Photograph unavailable offline. Connect and reopen this record.' : 'Downloading photograph…'}</Text></View>;
 }
+// Saved photos are encrypted on the device; decrypt them in memory for display only.
+const decrypted = new Map<string, string>();
+export function PhotoImage({ photo, style, label, resizeMode }: { photo: PlantPhoto; style: StyleProp<ImageStyle>; label: string; resizeMode?: 'cover' | 'contain' }) {
+  const encrypted = isEncryptedPhoto(photo);
+  const [, setLoaded] = useState(0);
+  const uri = encrypted ? decrypted.get(photo.uri as string) : photo.uri;
+  useEffect(() => {
+    if (!encrypted || decrypted.has(photo.uri as string)) return;
+    let active = true;
+    void photoData(photo).then(data => { decrypted.set(photo.uri as string, data); if (active) setLoaded(n => n + 1); }).catch(() => undefined);
+    return () => { active = false; };
+  }, [photo, encrypted]);
+  return uri ? <Image source={{ uri }} style={style} resizeMode={resizeMode} accessibilityLabel={label} /> : <View style={[style as object, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.soft }]}><RecordIcon name="photo" size={20} /></View>;
+}
 export function RecordPhotos({ record }: { record: PlantRecord }) {
-  return <View style={ui.panel}><Text style={ui.sectionTitle}>Photographs</Text>{record.photos.length ? record.photos.map(photo => <View key={photo.id} style={{ gap: 6 }}>{!photo.uri && photo.remoteIndex !== undefined ? <RemotePhoto plantId={record.plantId} index={photo.remoteIndex} label={photo.caption || 'Collected plant photograph'} /> : photo.uri ? <Image source={{ uri: photo.uri }} style={ui.photo} accessibilityLabel={photo.caption || 'Collected plant photograph'} /> : <View style={ui.photoEmpty}><RecordIcon name="photo" size={24} /><Text style={ui.caption}>{photo.sampleLabel || 'Sample photograph placeholder'}</Text></View>}{!!photo.caption && <Text style={ui.paragraph}>{photo.caption}</Text>}</View>) : <Text style={ui.paragraph}>No photographs attached.</Text>}</View>;
+  return <View style={ui.panel}><Text style={ui.sectionTitle}>Photographs</Text>{record.photos.length ? record.photos.map(photo => <View key={photo.id} style={{ gap: 6 }}>{!photo.uri && photo.remoteIndex !== undefined ? <RemotePhoto plantId={record.plantId} index={photo.remoteIndex} label={photo.caption || 'Collected plant photograph'} /> : photo.uri ? <PhotoImage photo={photo} style={ui.photo} label={photo.caption || 'Collected plant photograph'} /> : <View style={ui.photoEmpty}><RecordIcon name="photo" size={24} /><Text style={ui.caption}>{photo.sampleLabel || 'Sample photograph placeholder'}</Text></View>}{!!photo.caption && <Text style={ui.paragraph}>{photo.caption}</Text>}</View>) : <Text style={ui.paragraph}>No photographs attached.</Text>}</View>;
 }
 export function RecordScroll({ children }: PropsWithChildren) { return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={ui.scroll}>{children}</ScrollView>; }
 export function recordDate(iso: string) { return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }

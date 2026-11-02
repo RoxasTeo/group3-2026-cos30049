@@ -3,7 +3,8 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { Text, View } from 'react-native';
 import { resetPlantRecords, openPlantRecords, replaceServerRecords, recordsRevision } from '../data/plantRecords';
 import { openSpeciesCache, refreshSpecies, resetSpecies } from '../data/speciesReference';
-import { readRecords, writeRecords, readSession, writeSession, clearSession } from '../services/offlineStorage';
+import { readRecords, writeRecords, readSession, writeSession, clearSession, loadDeviceKey } from '../services/offlineStorage';
+import { isSealed, openText, sealText, setDeviceKey } from '../services/localEncryption';
 import { fetchPlantRecords } from '../services/plantRecordsApi';
 import { apiBaseUrl } from './apiConfig';
 import { logoutRequest, type Session } from './loginRequest';
@@ -13,9 +14,13 @@ const SessionContext = createContext<{ session: Session | null; signIn: (value: 
 function readAccount(value: Session) {
   return readAccountRecords(value.user, apiBaseUrl(), null, { read: readRecords, write: writeRecords });
 }
+// Offline records (GPS, notes, identifications) are stored encrypted with the device key.
 function openAccount(value: Session) {
   const { key, raw } = readAccount(value);
-  openPlantRecords(raw, data => writeRecords(key, data));
+  const plain = raw === null ? null : openText(raw);
+  openPlantRecords(plain, data => writeRecords(key, sealText(data)));
+  // Records saved by an earlier app version are re-saved encrypted immediately.
+  if (raw !== null && plain !== null && !isSealed(raw)) writeRecords(key, sealText(plain));
   openSpeciesCache(apiBaseUrl(), { read: readRecords, write: writeRecords });
 }
 export function SessionProvider({ children }: PropsWithChildren) {
@@ -34,6 +39,7 @@ export function SessionProvider({ children }: PropsWithChildren) {
         if (stored.baseUrl !== apiBaseUrl()) return;
         const value = stored.session as Session;
         if (!value?.user?.id || !value.token || !isRole(value.user.role)) return;
+        setDeviceKey(await loadDeviceKey());
         openAccount(value);
         if (!active) return;
         setSession(value); setRecordsState('ready');
@@ -75,8 +81,9 @@ export function SessionProvider({ children }: PropsWithChildren) {
   }, [refreshRecords, cancelRequests]);
   async function signIn(value: Session) {
     // Validate the cache before saving credentials or changing the visible account.
+    setDeviceKey(await loadDeviceKey());
     const { raw } = readAccount(value);
-    if (raw) JSON.parse(raw);
+    if (raw) JSON.parse(openText(raw));
     await writeSession(JSON.stringify({ baseUrl: apiBaseUrl(), session: value }));
     requestId.current++; openAccount(value); setRecordsState('ready'); setRecordsError(''); setSession(value);
   }
