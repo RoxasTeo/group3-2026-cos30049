@@ -36,7 +36,7 @@ $limit = 2000;
 $sql = 'SELECT o.id, o.submitted_by, o.plant_tag, o.species_id, o.latitude, o.longitude, o.accuracy_m,
     o.location_captured_at, o.submitted_at, o.status AS review_status, u.name AS submitter_name,
     s.common_name, s.scientific_name, s.family, s.status AS conservation_status' . $from .
-    ' JOIN users u ON u.id = o.submitted_by' . $filter . " AND s.species_id IS NOT NULL ORDER BY ($validGps) DESC, o.submitted_at DESC, o.id DESC LIMIT $limit";
+    ' JOIN users u ON u.id = o.submitted_by' . $filter . " ORDER BY ($validGps) DESC, o.submitted_at DESC, o.id DESC LIMIT $limit";
 $stmt = $db->prepare($sql); $stmt->execute($params);
 $records = $stmt->fetchAll();
 foreach ($records as &$record) {
