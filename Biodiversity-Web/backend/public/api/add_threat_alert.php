@@ -3,7 +3,6 @@ require_once __DIR__ . '/../../bootstrap.php';
 
 api(['POST']);
 
-// Authenticate ESP32 device
 $expectedKey = getenv('IOT_DEVICE_API_KEY');
 $providedKey = $_SERVER['HTTP_X_DEVICE_KEY'] ?? '';
 
@@ -15,18 +14,19 @@ if (!$expectedKey || !hash_equals($expectedKey, $providedKey)) {
 
 $data = jsonBody();
 
-$plantId = filter_var(
-    $data['plant_id'] ?? null,
-    FILTER_VALIDATE_INT
-);
+// Get device code instead of plant_id.
+$deviceCode = trim($data['device_code'] ?? '');
 
-if (!$plantId || $plantId <= 0) {
+if (
+    $deviceCode === '' ||
+    strlen($deviceCode) > 64
+) {
     respond(400, [
-        'error' => 'A valid plant_id is required.'
+        'error' => 'A valid device_code is required.'
     ]);
 }
 
-// Validate alert type
+
 $alertType = trim($data['alert_type'] ?? '');
 
 if ($alertType === '' || strlen($alertType) > 30) {
@@ -35,7 +35,6 @@ if ($alertType === '' || strlen($alertType) > 30) {
     ]);
 }
 
-// Validate alert message
 $message = trim($data['message'] ?? '');
 
 if ($message === '' || strlen($message) > 255) {
@@ -44,7 +43,6 @@ if ($message === '' || strlen($message) > 255) {
     ]);
 }
 
-// Optional severity reported by the device
 $severity = $data['severity'] ?? 'warning';
 
 if (!in_array($severity, ['info', 'warning', 'critical'], true)) {
@@ -53,70 +51,70 @@ if (!in_array($severity, ['info', 'warning', 'critical'], true)) {
     ]);
 }
 
-// Optional tracking assignment ID
-$assignmentId = $data['tracking_assignment_id'] ?? null;
-
-if ($assignmentId !== null) {
-    $assignmentId = filter_var(
-        $assignmentId,
-        FILTER_VALIDATE_INT
-    );
-
-    if ($assignmentId === false || $assignmentId <= 0) {
-        respond(400, [
-            'error' => 'Invalid tracking_assignment_id.'
-        ]);
-    }
-}
-
 try {
+
     $pdo = database();
 
-    // Get registered coordinates from tracked_plants
-    $checkPlant = $pdo->prepare(
-        "SELECT latitude, longitude
-         FROM tracked_plants
-         WHERE id = :plant_id"
+    $checkDevice = $pdo->prepare(
+        "SELECT id
+         FROM tracking_devices
+         WHERE device_code = :device_code
+           AND is_active = 1
+         LIMIT 1"
     );
 
-    $checkPlant->execute([
-        ':plant_id' => $plantId
+    $checkDevice->execute([
+        ':device_code' => $deviceCode
     ]);
 
-    $plant = $checkPlant->fetch(PDO::FETCH_ASSOC);
+    $device = $checkDevice->fetch(PDO::FETCH_ASSOC);
 
-    if (!$plant) {
+    if (!$device) {
         respond(404, [
-            'error' => 'Tracked plant not found.'
+            'error' => 'Tracking device not found or inactive.'
         ]);
     }
 
-    $latitude = $plant['latitude'];
-    $longitude = $plant['longitude'];
+    $checkAssignment = $pdo->prepare(
+        "SELECT
+            ta.id AS tracking_assignment_id,
+            ta.plant_id,
+            tp.latitude,
+            tp.longitude
+         FROM tracking_assignments ta
+         INNER JOIN tracked_plants tp
+            ON tp.id = ta.plant_id
+         WHERE ta.device_id = :device_id
+           AND ta.ended_at IS NULL
+         LIMIT 2"
+    );
 
-    // Verify that the assignment belongs to this plant
-    if ($assignmentId !== null) {
-        $checkAssignment = $pdo->prepare(
-            "SELECT id
-             FROM tracking_assignments
-             WHERE id = :assignment_id
-               AND plant_id = :plant_id
-               AND ended_at IS NULL"
-        );
+    $checkAssignment->execute([
+        ':device_id' => $device['id']
+    ]);
 
-        $checkAssignment->execute([
-            ':assignment_id' => $assignmentId,
-            ':plant_id' => $plantId
+    $assignments = $checkAssignment->fetchAll(PDO::FETCH_ASSOC);
+
+    if (count($assignments) === 0) {
+        respond(400, [
+            'error' => 'This device has no active tracking assignment.'
         ]);
-
-        if (!$checkAssignment->fetch(PDO::FETCH_ASSOC)) {
-            respond(400, [
-                'error' => 'Tracking assignment does not belong to this plant or is inactive.'
-            ]);
-        }
     }
 
-    // Insert threat alert
+    if (count($assignments) > 1) {
+        respond(409, [
+            'error' => 'Multiple active tracking assignments found for this device.'
+        ]);
+    }
+
+    $assignment = $assignments[0];
+
+    $assignmentId = $assignment['tracking_assignment_id'];
+    $plantId = $assignment['plant_id'];
+
+    $latitude = $assignment['latitude'];
+    $longitude = $assignment['longitude'];
+
     $stmt = $pdo->prepare(
         "INSERT INTO threat_alerts (
             tracking_assignment_id,
@@ -150,6 +148,8 @@ try {
     respond(201, [
         'message' => 'Threat alert saved successfully.',
         'alert_id' => $pdo->lastInsertId(),
+        'device_code' => $deviceCode,
+        'tracking_assignment_id' => $assignmentId,
         'plant_id' => $plantId,
         'alert_type' => $alertType,
         'latitude' => $latitude,
@@ -157,6 +157,7 @@ try {
     ]);
 
 } catch (PDOException $e) {
+
     error_log('Threat Alert Insert Error: ' . $e->getMessage());
 
     respond(500, [

@@ -628,7 +628,8 @@ function formatSoilMoisture(value) {
               <th>Humidity</th>
               <th>Soil Moisture Raw</th>
               <th>Soil Moisture %</th>
-              <th>Distance</th>
+              <th>Latitude</th>
+              <th>Longitude</th>
               <th>Location</th>
               <th>Recorded At</th>
             </tr>
@@ -666,7 +667,11 @@ function formatSoilMoisture(value) {
               </td>
 
               <td>
-                {{ reading.distance_cm == null ? '—' : formatNumber(reading.distance_cm) + ' cm' }}
+                {{ reading.latitude}}
+              </td>
+
+              <td>
+                {{ reading.longitude }}
               </td>
 
               <td>

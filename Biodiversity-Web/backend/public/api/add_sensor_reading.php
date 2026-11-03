@@ -15,14 +15,12 @@ if (!$expectedKey || !hash_equals($expectedKey, $providedKey)) {
 
 $data = jsonBody();
 
-$plantId = filter_var(
-    $data['plant_id'] ?? null,
-    FILTER_VALIDATE_INT
-);
+// Validate device code
+$deviceCode = trim($data['device_code'] ?? '');
 
-if (!$plantId || $plantId <= 0) {
+if ($deviceCode === '' || strlen($deviceCode) > 64) {
     respond(400, [
-        'error' => 'A valid plant_id is required.'
+        'error' => 'A valid device_code is required.'
     ]);
 }
 
@@ -85,11 +83,15 @@ if ($soilPercent !== null) {
     }
 }
 
-// Optional ultrasonic distance (cm). Sudden changes are treated as movement near the plant.
+// Optional ultrasonic distance (cm)
 $distance = $data['distance_cm'] ?? null;
 
 if ($distance !== null) {
-    if (!is_numeric($distance) || (float) $distance < 0 || (float) $distance > 999999.99) {
+    if (
+        !is_numeric($distance) ||
+        (float) $distance < 0 ||
+        (float) $distance > 999999.99
+    ) {
         respond(400, [
             'error' => 'distance_cm must be between 0 and 999999.99.'
         ]);
@@ -98,7 +100,7 @@ if ($distance !== null) {
     $distance = (float) $distance;
 }
 
-// Optional GPS fix from the device. Without it the plant's registered location is used.
+// Optional GPS coordinates from the device
 $deviceLatitude = $data['latitude'] ?? null;
 $deviceLongitude = $data['longitude'] ?? null;
 
@@ -110,89 +112,108 @@ if (($deviceLatitude === null) !== ($deviceLongitude === null)) {
 
 if (
     $deviceLatitude !== null &&
-    (!is_numeric($deviceLatitude) || abs((float) $deviceLatitude) > 90 ||
-     !is_numeric($deviceLongitude) || abs((float) $deviceLongitude) > 180)
+    (
+        !is_numeric($deviceLatitude) ||
+        abs((float) $deviceLatitude) > 90 ||
+        !is_numeric($deviceLongitude) ||
+        abs((float) $deviceLongitude) > 180
+    )
 ) {
     respond(400, [
         'error' => 'Invalid device GPS coordinates.'
     ]);
 }
 
-// Optional tracking assignment ID
-$assignmentId = $data['tracking_assignment_id'] ?? null;
-
-if ($assignmentId !== null) {
-    $assignmentId = filter_var(
-        $assignmentId,
-        FILTER_VALIDATE_INT
-    );
-
-    if ($assignmentId === false || $assignmentId <= 0) {
-        respond(400, [
-            'error' => 'Invalid tracking_assignment_id.'
-        ]);
-    }
-}
-
 try {
     $pdo = database();
 
-    // Get the registered coordinates from tracked_plants
-    $checkPlant = $pdo->prepare(
-        "SELECT latitude, longitude
-         FROM tracked_plants
-         WHERE id = :plant_id"
+    // Find the registered and active tracking device
+    $deviceStmt = $pdo->prepare(
+        "SELECT id
+         FROM tracking_devices
+         WHERE device_code = :device_code
+           AND is_active = 1
+         LIMIT 1"
     );
 
-    $checkPlant->execute([
-        ':plant_id' => $plantId
+    $deviceStmt->execute([
+        ':device_code' => $deviceCode
     ]);
 
-    $plant = $checkPlant->fetch(PDO::FETCH_ASSOC);
+    $device = $deviceStmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$plant) {
+    if (!$device) {
         respond(404, [
-            'error' => 'Tracked plant not found.'
+            'error' => 'Tracking device not found or inactive.'
         ]);
     }
 
+    $deviceId = (int) $device['id'];
+
+    // Find the active assignment and associated plant
+    $assignmentStmt = $pdo->prepare(
+        "SELECT
+            ta.id AS tracking_assignment_id,
+            ta.plant_id,
+            tp.latitude,
+            tp.longitude
+         FROM tracking_assignments ta
+         INNER JOIN tracked_plants tp
+             ON tp.id = ta.plant_id
+         WHERE ta.device_id = :device_id
+           AND ta.ended_at IS NULL
+         LIMIT 2"
+    );
+
+    $assignmentStmt->execute([
+        ':device_id' => $deviceId
+    ]);
+
+    $assignments = $assignmentStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    if (count($assignments) === 0) {
+        respond(400, [
+            'error' => 'This device has no active tracking assignment.'
+        ]);
+    }
+
+    if (count($assignments) > 1) {
+        respond(409, [
+            'error' => 'This device has multiple active tracking assignments.'
+        ]);
+    }
+
+    $assignment = $assignments[0];
+
+    $assignmentId = (int) $assignment['tracking_assignment_id'];
+    $plantId = (int) $assignment['plant_id'];
+
+    // Determine the location source
     $locationSource = $deviceLatitude === null ? 'registered' : 'device';
-    $latitude = $deviceLatitude === null ? $plant['latitude'] : (float) $deviceLatitude;
-    $longitude = $deviceLongitude === null ? $plant['longitude'] : (float) $deviceLongitude;
 
-    // Verify that the assignment belongs to this plant
-    if ($assignmentId !== null) {
-        $checkAssignment = $pdo->prepare(
-            "SELECT id
-             FROM tracking_assignments
-             WHERE id = :assignment_id
-               AND plant_id = :plant_id
-               AND ended_at IS NULL"
-        );
+    $latitude = $deviceLatitude === null
+        ? $assignment['latitude']
+        : (float) $deviceLatitude;
 
-        $checkAssignment->execute([
-            ':assignment_id' => $assignmentId,
-            ':plant_id' => $plantId
-        ]);
-
-        if (!$checkAssignment->fetch(PDO::FETCH_ASSOC)) {
-            respond(400, [
-                'error' => 'Tracking assignment does not belong to this plant or is inactive.'
-            ]);
-        }
-    }
+    $longitude = $deviceLongitude === null
+        ? $assignment['longitude']
+        : (float) $deviceLongitude;
 
     $config = threatConfiguration();
+
     $pdo->beginTransaction();
 
-    // Most recent distance for this plant, used to detect sudden movement
+    // Get the most recent distance for this plant and assignment
     $previousStmt = $pdo->prepare(
         "SELECT distance_cm
          FROM sensor_readings
          WHERE plant_id = :plant_id
-           AND tracking_assignment_id <=> :assignment_id
+           AND tracking_assignment_id = :assignment_id
            AND distance_cm IS NOT NULL
-           AND recorded_at >= DATE_SUB(NOW(), INTERVAL " . (int) $config['baseline_max_age_seconds'] . " SECOND)
+           AND recorded_at >= DATE_SUB(
+               NOW(),
+               INTERVAL " . (int) $config['baseline_max_age_seconds'] . " SECOND
+           )
          ORDER BY reading_id DESC
          LIMIT 1
          FOR UPDATE"
@@ -247,7 +268,7 @@ try {
 
     $readingId = (int) $pdo->lastInsertId();
 
-    // Server-side threat detection: the device does not need to decide what is unusual
+    // Server-side threat detection
     $reading = [
         'temperature' => $temperature,
         'humidity' => $humidity,
@@ -270,6 +291,8 @@ try {
     respond(201, [
         'message' => 'Sensor reading saved successfully.',
         'reading_id' => $readingId,
+        'device_code' => $deviceCode,
+        'tracking_assignment_id' => $assignmentId,
         'plant_id' => $plantId,
         'location_source' => $locationSource,
         'latitude' => $latitude,
