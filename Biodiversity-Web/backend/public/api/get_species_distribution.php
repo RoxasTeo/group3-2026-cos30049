@@ -33,10 +33,26 @@ $summary = array_map('intval', $stmt->fetch());
 
 // Prefer mappable records, then newest first. Never send photo blobs/field notes in the map response.
 $limit = 2000;
-$sql = 'SELECT o.id, o.submitted_by, o.plant_tag, o.species_id, o.latitude, o.longitude, o.accuracy_m,
-    o.location_captured_at, o.submitted_at, o.status AS review_status, u.name AS submitter_name,
-    s.common_name, s.scientific_name, s.family, s.status AS conservation_status' . $from .
-    ' JOIN users u ON u.id = o.submitted_by' . $filter . " ORDER BY ($validGps) DESC, o.submitted_at DESC, o.id DESC LIMIT $limit";
+$sql = 'SELECT
+    o.id,
+    o.submitted_by,
+    o.plant_tag,
+    o.species_id,
+    COALESCE(s.common_name, o.common_name) AS common_name,
+    COALESCE(s.scientific_name, o.scientific_name) AS scientific_name,
+    COALESCE(s.family, o.family) AS family,
+    o.latitude,
+    o.longitude,
+    o.accuracy_m,
+    o.location_captured_at,
+    o.submitted_at,
+    o.status AS review_status,
+    u.name AS submitter_name,
+    COALESCE(s.status, o.conservation_status) AS conservation_status'
+    . $from .
+    ' JOIN users u ON u.id = o.submitted_by' .
+    $filter .
+    " ORDER BY ($validGps) DESC, o.submitted_at DESC, o.id DESC LIMIT $limit";
 $stmt = $db->prepare($sql); $stmt->execute($params);
 $records = $stmt->fetchAll();
 foreach ($records as &$record) {

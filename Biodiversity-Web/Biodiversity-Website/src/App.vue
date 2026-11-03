@@ -260,7 +260,7 @@ onUnmounted(() => {
 
     <div class="workspace">
       <header class="topbar">
-        <span>Plant knowledge system</span>
+        <span>Digital Plant Knowledge System</span>
 
         <div class="auth-header-links">
           <span>{{ currentUser?.name }}</span>
@@ -282,7 +282,7 @@ onUnmounted(() => {
 
       <footer>
         Niah biodiversity workspace
-        <span>Sprint 1 prototype</span>
+        <span>Sprint 2 prototype</span>
       </footer>
     </div>
   </template>
