@@ -13,7 +13,7 @@ const error = ref('')
 
 onMounted(async () => {
   try {
-    const data = await request('/api/get_species.php')
+    const data = await request('/api/get_user_species.php')
     species.value = data
   } catch (err) {
     error.value = err.message || 'Failed to load species data.'

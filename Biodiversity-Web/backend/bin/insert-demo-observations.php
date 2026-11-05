@@ -5,7 +5,7 @@ require_once __DIR__ . '/../observations.php';
 
 $db = database();
 
-$submittedBy = 1;
+$submittedBy = 3;
 
 $plants = [
     [

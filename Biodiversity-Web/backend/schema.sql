@@ -62,6 +62,19 @@ CREATE TABLE IF NOT EXISTS species (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS user_visible_species (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    species_id INT NOT NULL UNIQUE,
+    approved_by INT NOT NULL,
+    approved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (species_id)
+        REFERENCES species(species_id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (approved_by)
+        REFERENCES users(user_id)
+) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS tracked_plants (
  id INT AUTO_INCREMENT PRIMARY KEY,
