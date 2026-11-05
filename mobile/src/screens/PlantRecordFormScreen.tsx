@@ -43,22 +43,21 @@ export default function PlantRecordFormScreen() {
     try { const record = savePlantRecord({ ...form, photos: await preservePhotos(photos), location }, ready, editing ? 'edit' : 'create'); setFinishedId(record.plantId); }
     catch (e) { setError(e instanceof Error ? e.message : 'Could not save this draft.'); setSaving(false); }
   }
-  function field(key: TextKey, label: string, placeholder: string, multiline = false) {
-    return <View style={styles.field}><Text style={styles.label}>{label}</Text><TextInput accessibilityLabel={label} value={form[key]} keyboardType={key === 'heightMetres' ? 'decimal-pad' : 'default'} onChangeText={value => set(key, value)} placeholder={placeholder} placeholderTextColor={colors.muted} multiline={multiline} maxLength={multiline ? 2000 : 140} autoCapitalize={key === 'scientificName' ? 'none' : 'sentences'} style={[styles.input, multiline && styles.multiline]} /></View>;
+  function field(key: TextKey, label: string, placeholder: string, multiline = false, requirement = 'Optional') {
+    const accessibleLabel = requirement === 'Optional' ? `${label}, optional` : `${label}, ${requirement.toLowerCase()}`;
+    return <View style={styles.field}><View style={styles.fieldHeading}><Text style={styles.label}>{label}</Text><Text style={styles.requirement}>{requirement}</Text></View><TextInput accessibilityLabel={accessibleLabel} value={form[key]} keyboardType={key === 'heightMetres' ? 'decimal-pad' : 'default'} onChangeText={value => set(key, value)} placeholder={placeholder} placeholderTextColor={colors.muted} multiline={multiline} maxLength={multiline ? 2000 : 140} autoCapitalize={key === 'scientificName' ? 'none' : 'sentences'} style={[styles.input, multiline && styles.multiline]} /></View>;
   }
   return <RecordFrame onTab={destination => router.replace(destination)}><KeyboardAvoidingView style={ui.body} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><RecordScroll>
     <RecordBack label={editing ? 'record details' : 'Records'} onPress={leave} />
     {locked ? <><Text accessibilityRole="header" style={ui.title}>{existing ? 'Record is read-only' : 'Draft not found'}</Text><Text style={ui.paragraph}>Only existing drafts can be edited. A new record must use a unique plant ID.</Text><RecordButton label="Back to Records" onPress={() => router.replace('/navigation/botanist/records')} /></> : <>
-      <View><Text style={ui.eyebrow}>FIELD DOCUMENTATION</Text><Text accessibilityRole="header" style={ui.title}>{editing ? 'Continue draft' : 'New plant record'}</Text><Text style={ui.subtitle}>Save incomplete observations as a draft.</Text></View>
-      <View style={styles.field}><Text style={styles.label}>Plant / temporary ID</Text><Text selectable style={[styles.input, styles.readonly]}>{id}</Text><Text style={ui.caption}>Assigned once. An unidentified plant can keep a temporary ID.</Text></View>
-      {field('commonName', 'Common name', 'Leave blank if unknown')}
-      {field('scientificName', 'Scientific name', 'Optional until identification')}
-      {field('family', 'Family', 'Optional')}
-      {field('heightMetres', 'Height (metres)', 'Optional, e.g. 2.5')}
+      <View><Text style={ui.eyebrow}>FIELD DOCUMENTATION</Text><Text accessibilityRole="header" style={ui.title}>{editing ? 'Continue draft' : 'New plant record'}</Text><Text style={ui.subtitle}>Save incomplete observations as an offline draft. Items marked “Required to mark ready” are checked only when you queue a sync.</Text></View>
+      <View style={styles.field}><View style={styles.fieldHeading}><Text style={styles.label}>Plant / temporary ID</Text><Text style={styles.requirement}>Assigned</Text></View><Text selectable style={[styles.input, styles.readonly]}>{id}</Text><Text style={ui.caption}>Assigned once. An unidentified plant can keep a temporary ID.</Text></View>
+      <View style={styles.section}><Text style={ui.sectionTitle}>Identification and taxonomy</Text><Text style={ui.caption}>Use the current record schema; leave an identification blank when it is not yet known.</Text>{field('commonName', 'Common name', 'Leave blank if unknown')}{field('scientificName', 'Scientific name', 'Optional until identification')}{field('family', 'Plant family', 'Optional')}</View>
+      <View style={styles.section}><Text style={ui.sectionTitle}>Field characteristics</Text>{field('heightMetres', 'Plant height (metres)', 'Optional, e.g. 2.5')}
       {field('morphology', 'Morphological characteristics', 'Leaf shape, bark, flowers, fruit and growth form…', true)}
       {field('conservationStatus', 'Conservation status', 'Not assessed')}
-      {field('description', 'Field observations', 'Describe leaves, bark, height or habitat…', true)}
-      {field('habitatNotes', 'Habitat notes', 'Describe where you found the plant…', true)}
+      {field('description', 'Field observations', 'Describe leaves, bark, height or habitat…', true, 'Required to mark ready')}
+      {field('habitatNotes', 'Habitat notes', 'Describe where you found the plant…', true)}</View>
       <CaptureFields photos={photos} location={location} onPhotos={setPhotos} onLocation={setLocation} onBusyChange={setCapturing} />
       <View style={styles.readiness}><Text style={ui.sectionTitle}>Before marking ready</Text>{[
         ['Plant ID assigned', true], ['Field observations recorded', !!form.description.trim()], ['GPS location captured', !!location],
@@ -71,4 +70,4 @@ export default function PlantRecordFormScreen() {
     <ConfirmRecordAction visible={discardVisible} title="Discard unsaved changes?" description="Your last saved draft will be kept. Changes made since then will be discarded." confirmLabel="Discard changes" onCancel={() => { setDiscardVisible(false); pendingLeave.current = null; }} onConfirm={() => { setDiscardVisible(false); const action = pendingLeave.current; pendingLeave.current = null; action?.(); }} />
   </RecordScroll></KeyboardAvoidingView></RecordFrame>;
 }
-const styles = StyleSheet.create({ field: { gap: 8 }, label: { fontSize: 13, fontWeight: '600', color: colors.ink }, input: { borderWidth: 1, borderColor: colors.border, borderRadius: 11, backgroundColor: colors.paper, padding: 14, minHeight: 52, fontSize: 16, color: colors.ink }, readonly: { backgroundColor: colors.soft, fontSize: 13 }, multiline: { minHeight: 110, textAlignVertical: 'top' }, readiness: { padding: 16, backgroundColor: colors.soft, borderRadius: 12, gap: 10 }, check: { flexDirection: 'row', alignItems: 'center', gap: 8 } });
+const styles = StyleSheet.create({ field: { gap: 8 }, section: { gap: 14 }, fieldHeading: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: 6 }, label: { fontSize: 13, fontWeight: '600', color: colors.ink }, requirement: { color: colors.muted, fontSize: 11 }, input: { borderWidth: 1, borderColor: colors.border, borderRadius: 11, backgroundColor: colors.paper, padding: 14, minHeight: 52, fontSize: 16, color: colors.ink }, readonly: { backgroundColor: colors.soft, fontSize: 13 }, multiline: { minHeight: 110, textAlignVertical: 'top' }, readiness: { padding: 16, backgroundColor: colors.soft, borderRadius: 12, gap: 10 }, check: { flexDirection: 'row', alignItems: 'center', gap: 8 } });
