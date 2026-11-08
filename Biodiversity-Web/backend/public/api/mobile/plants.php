@@ -4,14 +4,15 @@ api(['GET', 'POST'], false);
 $db = database();
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    // Each account downloads its own field records; officers review everyone's on the Web portal.
+    // Botanists share submitted observations. Officers retain their existing mobile scope.
     $user = requireMobileUser();
     $limit = filter_var($_GET['limit'] ?? 100, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 100]]);
     $offset = filter_var($_GET['offset'] ?? 0, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
     if ($limit === false || $offset === false) respond(400, ['error' => 'Invalid paging.']);
-    $stmt = $db->prepare('SELECT ' . MOBILE_RECORD_COLUMNS . " FROM observations o WHERE o.submitted_by = ? ORDER BY o.id LIMIT $limit OFFSET $offset");
-    $stmt->execute([$user['id']]);
-    respond(200, ['records' => array_map('mobilePlantRecord', $stmt->fetchAll())]);
+    $scope = $user['role'] === 'botanist' ? '' : ' WHERE o.submitted_by = ?';
+    $stmt = $db->prepare('SELECT ' . MOBILE_RECORD_COLUMNS . " FROM observations o$scope ORDER BY o.id LIMIT $limit OFFSET $offset");
+    $stmt->execute($user['role'] === 'botanist' ? [] : [$user['id']]);
+    respond(200, ['records' => array_map(fn(array $row) => mobilePlantRecord($row, $user['id']), $stmt->fetchAll())]);
 }
 
 $user = requireMobileUser(['botanist']);

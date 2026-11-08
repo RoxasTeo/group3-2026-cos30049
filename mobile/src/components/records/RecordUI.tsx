@@ -34,7 +34,7 @@ export function RecordBack({ onPress, label = 'Records' }: { onPress: () => void
 export function ConfirmRecordAction({ visible, title, description, confirmLabel, cancelLabel = 'Keep editing', onCancel, onConfirm }: { visible: boolean; title: string; description: string; confirmLabel: string; cancelLabel?: string; onCancel: () => void; onConfirm: () => void }) {
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}><View style={ui.overlay}><View accessibilityViewIsModal accessibilityRole="alert" style={ui.dialog}><RecordIcon name="alert" color={colors.red} size={28} /><Text accessibilityRole="header" style={ui.confirmTitle}>{title}</Text><Text style={ui.paragraph}>{description}</Text><RecordButton label={cancelLabel} onPress={onCancel} /><RecordButton label={confirmLabel} danger onPress={onConfirm} /></View></View></Modal>;
 }
-// Photos synced from another device are private: download them with the account token
+// Shared server photos still require authentication: download with the account token
 // (Image source headers are ignored on web) and show them as data URLs for this session.
 // Decoded photos are several MB each, so keep only the most recent few in memory.
 const CACHE_LIMIT = 8;
@@ -43,9 +43,9 @@ function remember(cache: Map<string, string>, key: string, value: string) {
   while (cache.size > CACHE_LIMIT) cache.delete(cache.keys().next().value as string);
 }
 const remotePhotos = new Map<string, string>();
-function RemotePhoto({ plantId, index, label }: { plantId: string; index: number; label: string }) {
+function RemotePhoto({ plantId, observationId, index, label }: { plantId: string; observationId?: number; index: number; label: string }) {
   const { session } = useSession();
-  const url = `${apiBaseUrl()}/mobile/photo.php?plantId=${encodeURIComponent(plantId)}&index=${index}`;
+  const url = `${apiBaseUrl()}/mobile/photo.php?plantId=${encodeURIComponent(plantId)}&index=${index}${observationId ? `&observationId=${observationId}` : ''}`;
   const [uri, setUri] = useState(() => remotePhotos.get(url));
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -76,7 +76,7 @@ export function PhotoImage({ photo, style, label, resizeMode }: { photo: PlantPh
   return uri ? <Image source={{ uri }} style={style} resizeMode={resizeMode} accessibilityLabel={label} /> : <View style={[style as object, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.soft }]}><RecordIcon name="photo" size={20} /></View>;
 }
 export function RecordPhotos({ record }: { record: PlantRecord }) {
-  return <View style={ui.panel}><Text style={ui.sectionTitle}>Photographs</Text>{record.photos.length ? record.photos.map(photo => <View key={photo.id} style={{ gap: 6 }}>{!photo.uri && photo.remoteIndex !== undefined ? <RemotePhoto plantId={record.plantId} index={photo.remoteIndex} label={photo.caption || 'Collected plant photograph'} /> : photo.uri ? <PhotoImage photo={photo} style={ui.photo} label={photo.caption || 'Collected plant photograph'} /> : <View style={ui.photoEmpty}><RecordIcon name="photo" size={24} /><Text style={ui.caption}>{photo.sampleLabel || 'Sample photograph placeholder'}</Text></View>}{!!photo.caption && <Text style={ui.paragraph}>{photo.caption}</Text>}</View>) : <Text style={ui.paragraph}>No photographs attached.</Text>}</View>;
+  return <View style={ui.panel}><Text style={ui.sectionTitle}>Photographs</Text>{record.photos.length ? record.photos.map(photo => <View key={photo.id} style={{ gap: 6 }}>{!photo.uri && photo.remoteIndex !== undefined ? <RemotePhoto plantId={record.plantId} observationId={record.observationId} index={photo.remoteIndex} label={photo.caption || 'Collected plant photograph'} /> : photo.uri ? <PhotoImage photo={photo} style={ui.photo} label={photo.caption || 'Collected plant photograph'} /> : <View style={ui.photoEmpty}><RecordIcon name="photo" size={24} /><Text style={ui.caption}>{photo.sampleLabel || 'Sample photograph placeholder'}</Text></View>}{!!photo.caption && <Text style={ui.paragraph}>{photo.caption}</Text>}</View>) : <Text style={ui.paragraph}>No photographs attached.</Text>}</View>;
 }
 export function RecordScroll({ children }: PropsWithChildren) { return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={ui.scroll}>{children}</ScrollView>; }
 export function recordDate(iso: string) { return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }

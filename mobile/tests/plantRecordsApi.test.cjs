@@ -52,3 +52,12 @@ test('uploads only field data and photographs and requires server confirmation',
  const wrong = client(async () => ({ ok: true, json: async () => ({ record: { ...example, plantId: 'OTHER-ID' } }) }));
  await assert.rejects(wrong.uploadPlantRecord('http://api', 'token', example, []), /confirm/);
 });
+
+
+test('downloads separate observations that share a plant tag', async () => {
+ const records = [101, 102].map(id => ({ ...example, plantId: `OBS:${id}`, plantTag: 'SAME-TAG', observationId: id, collectorId: id, isOwnRecord: false }));
+ const c = client(async () => ({ok: true, json: async () => ({records})}));
+ const result = await c.fetchPlantRecords('http://api', 'token');
+ assert.equal(result.length, 2);
+ assert.equal(result[1].observationId, 102);
+});

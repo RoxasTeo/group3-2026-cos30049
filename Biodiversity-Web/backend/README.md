@@ -77,3 +77,10 @@ The minimum policy grants species management to `conservation_officer`. `botanis
 Vue integration: add a login screen, load `/auth/me.php` on application startup, redirect 401 responses to login, show 403 as access denied, and clear local user state after logout. Route guards improve navigation; backend guards enforce security. The current Web workspace uses the shared PHP species API and database. The old sample repository is no longer imported by the live application shell.
 
 See the [Web Setup Guide](../SETUP.md) for local startup and [deployment requirements](../DEPLOYMENT.md) for production configuration.
+
+
+### Shared mobile observations
+
+Authenticated botanists can download all submitted observations through `GET /api/mobile/plants.php`, including pending review, approved and rejected observations. Local drafts and unsent records remain private on their device. Synced observations are read-only in the mobile app; POST uploads remain tied to the authenticated collector. Officer mobile access retains its previous owner scope.
+
+The response includes `plantTag`, `observationId`, `collectorId` and `isOwnRecord`. Another collector's observation uses `OBS:<database-id>` as its internal mobile `plantId`, so repeated tags cannot overwrite private drafts or other observations. New synced-record QR codes use `plant:OBS:<database-id>`. Photos can be requested with `observationId` and `index`; legacy `plantId` photo requests remain owner-scoped. No database migration is required. Reload the mobile app and refresh Records after updating both components.

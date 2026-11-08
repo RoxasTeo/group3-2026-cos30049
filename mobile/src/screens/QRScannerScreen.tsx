@@ -3,7 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSession } from '../auth/SessionProvider';
-import { getPlantRecord } from '../data/plantRecords';
+import { findPlantByQr } from '../data/plantRecords';
 import { plantIdFromQr } from '../services/qrScannerAdapter';
 
 export default function QRScannerScreen() {
@@ -60,13 +60,17 @@ export default function QRScannerScreen() {
       setMessage('This QR code does not contain a valid plant ID. Try another tag or enter its ID below.');
       return;
     }
-    if (recordsState === 'loading' && !getPlantRecord(id)) {
+    if (recordsState === 'loading' && !findPlantByQr(id)) {
       setMessage('Load your records from Home or Records before scanning, so existing plants can be matched correctly.');
+      return;
+    }
+    if (id.startsWith('OBS:') && !findPlantByQr(id)) {
+      setMessage('This observation is not downloaded yet. Refresh Records while connected, then scan again.');
       return;
     }
     handling.current = true;
     setFocused(false);
-    router.push({ pathname: getPlantRecord(id) ? '/plant/[plantId]' : '/plant/new', params: { plantId: id } });
+    router.push({ pathname: findPlantByQr(id) ? '/plant/[plantId]' : '/plant/new', params: { plantId: findPlantByQr(id)?.plantId ?? id } });
   }
   const showCamera = focused && foreground && permission?.granted && !cameraError;
   const settingsNeeded = permission && !permission.granted && !permission.canAskAgain && Platform.OS !== 'web';

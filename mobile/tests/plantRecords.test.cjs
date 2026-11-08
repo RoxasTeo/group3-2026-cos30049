@@ -151,3 +151,38 @@ test('upload confirmation persists; failed records can be corrected but active u
  assert.throws(() => r.returnToDraft(record.plantId), /Only unsent/);
  assert.throws(() => r.savePlantRecord({ ...input('BAD-HEIGHT'), heightMetres: '-2' }), /Height/);
 });
+
+
+test('shared records with repeated tags coexist with private drafts and resolve exact QR observations', () => {
+  const r = repository();
+  r.resetPlantRecords();
+  r.openPlantRecords(null, () => {});
+  const draft = r.savePlantRecord(input('SAME-TAG'));
+  const base = { ...draft, status: 'Synced', plantTag: 'SAME-TAG', isOwnRecord: false };
+  r.replaceServerRecords([
+    { ...base, plantId: 'OBS:101', observationId: 101, collectorId: 2 },
+    { ...base, plantId: 'OBS:102', observationId: 102, collectorId: 3 },
+  ]);
+  assert.equal(r.getRecordsSnapshot().length, 3);
+  assert.equal(r.selectPlantRecords(r.getRecordsSnapshot(), 'same-tag').length, 3);
+  assert.equal(r.findPlantByQr('OBS:102').collectorId, 3);
+  assert.equal(r.findPlantByQr('SAME-TAG').status, 'Draft');
+  assert.throws(() => r.deletePlantDraft('OBS:101'), /Only drafts/);
+  assert.throws(() => r.returnToDraft('OBS:102'), /Only unsent/);
+});
+
+
+test('Recorded by me includes own uploads and private drafts but excludes other collectors', () => {
+  const r = repository();
+  r.resetPlantRecords(); r.openPlantRecords(null, () => {});
+  const draft = r.savePlantRecord(input('MY-DRAFT'));
+  r.replaceServerRecords([
+    { ...draft, plantId: 'MY-UPLOAD', status: 'Synced', isOwnRecord: true },
+    { ...draft, plantId: 'OBS:900', status: 'Synced', isOwnRecord: false },
+  ]);
+  const own = r.selectPlantRecords(r.getRecordsSnapshot(), '', 'Recorded by me');
+  assert.equal(own.length, 2);
+  assert.ok(own.every(record => record.isOwnRecord !== false));
+  assert.equal(r.selectPlantRecords(r.getRecordsSnapshot(), 'upload', 'Recorded by me').length, 1);
+  assert.equal(r.selectPlantRecords(r.getRecordsSnapshot(), '', 'All').length, 3);
+});

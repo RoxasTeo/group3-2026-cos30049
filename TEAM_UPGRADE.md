@@ -126,3 +126,70 @@ Stop the PHP server before re-running the script on an existing database.
 | Photo upload fails with a size error | Use XAMPP's PHP (allows 40 MB), or start PHP with `php -d post_max_size=32M -S 0.0.0.0:8080 -t Biodiversity-Web/backend/public`. |
 
 Full reference and manual setup: [`Biodiversity-Web/SETUP.md`](Biodiversity-Web/SETUP.md) and [`mobile/README.md`](mobile/README.md).
+
+
+## Mobile records update — 8 November 2026
+
+### Shared records and filters
+
+- Botanists can now view synced plant observations submitted by every Botanist, including photographs, GPS information and review status.
+- Drafts and unsent records remain private to the account that created them.
+- Synced records remain read-only in the mobile app.
+- The **Recorded by me** filter shows only the signed-in Botanist’s own records, including local drafts.
+- Every filter displays a count, such as **All - 7**, **Recorded by me - 4**, **Drafts - 0**, **Pending sync - 0**, **Synced - 7** and **Failed - 0**.
+- Counts update when local records or upload statuses change. While searching, counts include only matching records.
+- Pull down on Records to load observations recently uploaded by other Botanists.
+- Shared observations have distinct internal IDs so records with the same plant tag do not overwrite one another.
+
+### Updating an existing installation
+
+1. Get the latest code containing these changes. Update both the mobile app and PHP backend.
+2. Start MySQL and the PHP backend, then reload the mobile app.
+3. Pull down on the Records page to refresh.
+
+No database migration or additional dependencies are required for these changes.
+
+### Add a second demo Botanist
+
+With the local database configured and running, execute this command from the repository root:
+
+```powershell
+C:\xampp\php\php.exe Biodiversity-Web/backend/bin/seed-second-botanist.php
+```
+
+The script creates:
+
+| Name | Email | Password |
+| --- | --- | --- |
+| Demo Botanist Two | `botanist2@niah.demo` | `NiahDemo@2026` |
+
+It also adds three fictional observations:
+
+- Bird nest fern — DEMO
+- Pitcher plant — DEMO
+- Unidentified seedling — DEMO
+
+These observations contain illustrative measurements and GPS coordinates, with no photographs attached. They are not verified field survey data.
+
+The script preserves existing accounts and observations. Running it again does not duplicate these records or reset an existing account’s password. It requires `APP_ENV=development`.
+
+Each teammate using a separate local database must run this command themselves; pulling the code does not copy database records. The original `-Demo` setup does not include this second account.
+
+### Test sharing between Botanists
+
+For a database containing the original four demo observations and the three new observations:
+
+| Account | All | Recorded by me |
+| --- | ---: | ---: |
+| `botanist@niah.demo` | 7 | 4 |
+| `botanist2@niah.demo` | 7 | 3 |
+
+1. Sign in with the original Botanist account and refresh Records.
+2. Confirm that **All** includes the second Botanist’s observations.
+3. Select **Recorded by me** and confirm that only the original account’s records appear.
+4. Sign out and repeat with the second Botanist account.
+5. Create a draft: **Drafts**, **All** and **Recorded by me** should increase.
+6. Upload the record successfully: **Synced** should increase.
+7. Sign in with the other account and refresh to see the newly uploaded record.
+
+Counts will differ if additional records or local drafts already exist.

@@ -9,5 +9,6 @@ export function plantIdFromQr(raw: string) {
   } else {
     value = value.replace(/^plant:/i, '');
   }
+  if (/^OBS:[1-9][0-9]*$/i.test(value)) return value.toUpperCase();
   return /^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$/.test(value) ? value.toUpperCase() : null;
 }

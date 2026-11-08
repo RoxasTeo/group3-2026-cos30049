@@ -12,3 +12,10 @@ test('plant tags accept IDs, prefixed IDs and record URLs',()=>{
 test('unrelated payloads and malformed tags are rejected',()=>{
  for(const value of ['', 'ab', 'hello world', 'javascript:alert(1)', 'https://example.test/', 'https://example.test/%ZZ', 'a'.repeat(65)]) assert.equal(exported.plantIdFromQr(value),null);
 });
+
+
+test('shared observation QR codes resolve exact server IDs', () => {
+ assert.equal(exported.plantIdFromQr('plant:OBS:123'), 'OBS:123');
+ assert.equal(exported.plantIdFromQr('https://example.test/plant/OBS%3A123'), 'OBS:123');
+ assert.equal(exported.plantIdFromQr('plant:OBS:0'), null);
+});

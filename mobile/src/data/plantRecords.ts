@@ -6,6 +6,11 @@ export type PlantPhoto = { id: string; uri?: string; remoteIndex?: number; sampl
 export type PlantLocation = { latitude: number; longitude: number; accuracy?: number; sample?: boolean; capturedAt?: string };
 export type PlantRecord = {
   plantId: string;
+  /** Original tag; shared observations use a separate internal key to avoid collisions. */
+  plantTag?: string;
+  observationId?: number;
+  collectorId?: number;
+  isOwnRecord?: boolean;
   commonName: string;
   scientificName: string;
   family: string;
@@ -27,7 +32,7 @@ export type PlantRecord = {
   reference?: string;
 };
 export type PlantRecordInput = Pick<PlantRecord, 'plantId' | 'commonName' | 'scientificName' | 'family' | 'conservationStatus' | 'description' | 'habitatNotes' | 'heightMetres' | 'morphology'> & { photos?: PlantPhoto[]; location?: PlantLocation | null };
-export type RecordFilter = 'All' | RecordStatus;
+export type RecordFilter = 'All' | 'Recorded by me' | RecordStatus;
 let snapshot: readonly PlantRecord[] = [];
 let remoteIds = new Set<string>();
 let persist: ((value: string) => void) | undefined;
@@ -75,9 +80,17 @@ const copy = (record: PlantRecord): PlantRecord => ({ ...record, photos: record.
 export const getRecordsSnapshot = () => snapshot;
 export function subscribePlantRecords(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
 export function getPlantRecord(id: string) { const record = snapshot.find(r => r.plantId === key(id)); return record ? copy(record) : undefined; }
+export function findPlantByQr(id: string) {
+  const normalized = key(id);
+  // New QR tags identify the exact server observation, even if collectors reused a tag.
+  const server = /^OBS:(\d+)$/.exec(normalized);
+  const record = server ? snapshot.find(r => r.observationId === Number(server[1]))
+    : snapshot.find(r => r.plantId === normalized) ?? snapshot.find(r => r.plantTag === normalized);
+  return record ? copy(record) : undefined;
+}
 export function selectPlantRecords(records: readonly PlantRecord[], search = '', filter: RecordFilter = 'All') {
   const term = search.trim().toLowerCase();
-  return records.filter(r => (filter === 'All' || r.status === filter) && `${r.commonName} ${r.scientificName} ${r.plantId}`.toLowerCase().includes(term))
+  return records.filter(r => (filter === 'All' || (filter === 'Recorded by me' ? r.isOwnRecord !== false : r.status === filter)) && `${r.commonName} ${r.scientificName} ${r.plantId} ${r.plantTag ?? ''}`.toLowerCase().includes(term))
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 }
 let sequence = 0;

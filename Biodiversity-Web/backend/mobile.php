@@ -56,7 +56,7 @@ const MOBILE_RECORD_COLUMNS = "o.id, o.submitted_by, o.client_reference, o.plant
     (SELECT JSON_OBJECT('notes', r.notes, 'observation_id', r.observation_id, 'observation_version', r.observation_version, 'reviewer_id', r.reviewer_id)
         FROM observation_reviews r WHERE r.observation_id = o.id ORDER BY r.id DESC LIMIT 1) AS latest_review";
 
-function mobilePlantRecord(array $row): array {
+function mobilePlantRecord(array $row, ?int $viewerId = null): array {
     $ids = $row['photo_ids'] === null ? [] : json_decode($row['photo_ids'], true, 4, JSON_THROW_ON_ERROR);
     $captions = $row['photo_captions'] === null ? [] : json_decode($row['photo_captions'], true, 4, JSON_THROW_ON_ERROR);
     $photos = [];
@@ -71,7 +71,12 @@ function mobilePlantRecord(array $row): array {
         if ($row['location_captured_at'] !== null) $location['capturedAt'] = utcIso($row['location_captured_at']);
     }
     return [
-        'plantId' => $row['plant_tag'],
+        // A separate internal key prevents another collector's tag from replacing a local draft.
+        'plantId' => $viewerId !== null && $viewerId !== (int) $row['submitted_by'] ? 'OBS:' . $row['id'] : $row['plant_tag'],
+        'plantTag' => $row['plant_tag'],
+        'observationId' => (int) $row['id'],
+        'collectorId' => (int) $row['submitted_by'],
+        'isOwnRecord' => $viewerId === null || $viewerId === (int) $row['submitted_by'],
         'commonName' => $row['common_name'],
         'scientificName' => $row['scientific_name'],
         'family' => $row['family'],

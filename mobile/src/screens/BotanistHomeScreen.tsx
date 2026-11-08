@@ -33,7 +33,7 @@ export default function BotanistHomeScreen() {
       <Text style={s.subtitle}>Ready for your next field discovery?</Text>
 
       <View style={s.preview}>
-        <Text style={s.previewLabel}>YOUR RECORD COLLECTION</Text>
+        <Text style={s.previewLabel}>SHARED RECORD COLLECTION</Text>
         <Text style={s.previewText}>Save fieldwork offline, then upload from Sync. Officers review uploads on the Web portal.</Text>
       </View>
 
@@ -49,7 +49,7 @@ export default function BotanistHomeScreen() {
       </Pressable>
 
       <Pressable accessibilityRole="button" onPress={() => router.push('/plant/reference')} style={s.scan}><HomeIcon kind="leaf" /><Text style={s.scanLabel}>Plant species reference</Text><Text style={s.arrow}>→</Text></Pressable>
-      <View style={s.sectionHeading}><Text accessibilityRole="header" style={s.sectionTitle}>Your field records</Text><Text style={s.smallLabel}>ON THIS DEVICE</Text></View>
+      <View style={s.sectionHeading}><Text accessibilityRole="header" style={s.sectionTitle}>Field records</Text><Text style={s.smallLabel}>ON THIS DEVICE</Text></View>
       <View style={s.stats}>
         <Pressable accessibilityRole="button" accessibilityLabel={`${drafts} draft records. Open Records`} onPress={() => goTo('records')} style={({ pressed }) => [s.stat, pressed && s.pressed]}>
           <Text style={s.count}>{drafts.toString().padStart(2, '0')}</Text><Text style={s.statLabel}>Drafts</Text><Text style={s.statHint}>Continue in Records →</Text>
@@ -66,7 +66,7 @@ export default function BotanistHomeScreen() {
             <View style={s.leafIcon}><HomeIcon kind="leaf" /></View>
             <View style={s.recordBody}>
               <Text style={s.recordName}>{record.commonName || 'Unidentified plant'}</Text>
-              <Text style={s.recordMeta}>{record.plantId} · {recordDate(record.updatedAt)}</Text>
+              <Text style={s.recordMeta}>{record.plantTag ?? record.plantId} · {recordDate(record.updatedAt)}</Text>
               <RecordBadge status={record.status} />
             </View>
           </Pressable>

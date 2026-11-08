@@ -3,7 +3,7 @@ export class RecordsAuthError extends Error {}
 function validRecord(value: unknown): value is PlantRecord {
   if (!value || typeof value !== 'object') return false;
   const r = value as PlantRecord;
-  return typeof r.plantId === 'string' && /^[A-Z0-9][A-Z0-9_-]{2,63}$/.test(r.plantId)
+  return typeof r.plantId === 'string' && /^(?:[A-Z0-9][A-Z0-9_-]{2,63}|OBS:[1-9][0-9]*)$/.test(r.plantId)
     && ['commonName','scientificName','family','conservationStatus','description','habitatNotes'].every(key => typeof (r as unknown as Record<string, unknown>)[key] === 'string')
     && r.status === 'Synced' && typeof r.sample === 'boolean'
     && typeof r.createdAt === 'string' && Number.isFinite(Date.parse(r.createdAt))
@@ -24,7 +24,7 @@ export async function fetchPlantRecords(baseUrl: string, token: string): Promise
       try { response = await fetch(`${baseUrl}/mobile/plants.php?limit=100&offset=${offset}`, { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }); }
       catch { throw new Error('Could not load records. Check the backend and your connection, then retry.'); }
       if (response.status === 401) throw new RecordsAuthError('Your sign-in has expired. Please sign in again.');
-      if (!response.ok) throw new Error('The server could not load your records. Please retry.');
+      if (!response.ok) throw new Error('The server could not load plant records. Please retry.');
       const data = await response.json();
       if (!Array.isArray(data.records) || data.records.length > 100 || !data.records.every(validRecord)) throw new Error('The server returned invalid plant records.');
       for (const record of data.records as PlantRecord[]) {
