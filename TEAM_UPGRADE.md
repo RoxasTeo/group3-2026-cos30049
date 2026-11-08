@@ -78,22 +78,24 @@ Install these once:
 | --- | --- | --- | --- |
 | Conservation officer | `officer@niah.demo` | `NiahDemo@2026` | Web and mobile |
 | Botanist | `botanist@niah.demo` | `NiahDemo@2026` | Web and mobile |
+| Second botanist | `botanist2@niah.demo` | `NiahDemo@2026` | Web and mobile |
 | Admin | `admin@niah.demo` | `NiahDemo@2026` | Web only |
 
 Sample data included:
 
 - **5 species** in the knowledge base (Bornean ironwood, agarwood, two pitcher plants, Rafflesia).
 - **4 botanist observations** with GPS and photos: one approved, one with changes requested (with reviewer notes), two pending review.
+- **3 second-botanist observations** (pending, no photos), to test shared records between botanists.
 - **2 tracked plants** with sensors, 24 hours of readings and 3 alerts on the Monitoring page.
 
-Sample data is only added to a database that has no species, observations or tracked plants, so running the script again never duplicates or overwrites anything.
+The main sample data is only added to a database that has no species, observations or tracked plants. The second botanist's three observations are added only if that account does not have them yet. Running the script again never duplicates or overwrites anything.
 
 These passwords are public. Use them **only on your own computer**; the script refuses to add them when `APP_ENV=production`.
 
 ## Quick test
 
 1. Web: sign in as **officer**. Observations, Species, Reports and Monitoring all show data.
-2. Mobile: sign in as **botanist**. Records shows the 4 sample observations; the one with changes requested shows the reviewer's notes.
+2. Mobile: sign in as **botanist**. Records shows **All - 7** (including the second botanist's 3) and **Recorded by me - 4**; the one with changes requested shows the reviewer's notes.
 3. Mobile: **New plant record** → photo + GPS → **Mark ready** → **Sync**.
 4. Web: as the officer, the new record appears under Observations. Review it, then pull to refresh Records on the phone to see the decision.
 
@@ -151,7 +153,7 @@ No database migration or additional dependencies are required for these changes.
 
 ### Add a second demo Botanist
 
-With the local database configured and running, execute this command from the repository root:
+`setup-local.ps1 -Demo` now adds this account automatically, so re-running step 3 is enough (existing data is kept). To add only this account, with the local database configured and running, execute this command from the repository root:
 
 ```powershell
 C:\xampp\php\php.exe Biodiversity-Web/backend/bin/seed-second-botanist.php
@@ -173,7 +175,7 @@ These observations contain illustrative measurements and GPS coordinates, with n
 
 The script preserves existing accounts and observations. Running it again does not duplicate these records or reset an existing account’s password. It requires `APP_ENV=development`.
 
-Each teammate using a separate local database must run this command themselves; pulling the code does not copy database records. The original `-Demo` setup does not include this second account.
+Each teammate using a separate local database must run the setup script (or this command) themselves; pulling the code does not copy database records.
 
 ### Test sharing between Botanists
 

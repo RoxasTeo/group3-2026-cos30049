@@ -231,7 +231,9 @@ Step 'Accounts'
 if ($Demo) {
     & $php (Join-Path $backend 'bin\seed-demo.php') 2>&1 | ForEach-Object { Write-Host "    $_" }
     if ($LASTEXITCODE -ne 0) { Fail 'Adding the demo accounts and sample data failed (see the message above).' }
-    Note 'Demo sign-in (local only): officer@niah.demo, botanist@niah.demo, admin@niah.demo - password NiahDemo@2026'
+    & $php (Join-Path $backend 'bin\seed-second-botanist.php') 2>&1 | ForEach-Object { Write-Host "    $_" }
+    if ($LASTEXITCODE -ne 0) { Fail 'Adding the second demo botanist failed (see the message above). It needs APP_ENV=development in Biodiversity-Web/backend/.env.' }
+    Note 'Demo sign-in (local only): officer@niah.demo, botanist@niah.demo, botanist2@niah.demo, admin@niah.demo - password NiahDemo@2026'
 } elseif ($userCount -gt 0) {
     Ok "$userCount account(s) already exist; none created."
 } elseif ($SkipAccounts) {

@@ -15,9 +15,9 @@ try {
     if ($existing && ($existing['role'] !== 'botanist' || !$existing['is_active'])) throw new RuntimeException('Existing demo account is not an active botanist; no changes made.');
     $owner = $existing ? (int) $existing['id'] : createProtectedUser($db, 'Demo Botanist Two', $email, password_hash('NiahDemo@2026', PASSWORD_BCRYPT, ['cost' => 10]), 'botanist');
     $rows = [
-        ['NIAH-DEMO-B2-001', 'Bird nest fern — DEMO', 'Asplenium nidus', 'Aspleniaceae', 0.6, 'Broad green fronds in a rosette.'],
-        ['NIAH-DEMO-B2-002', 'Pitcher plant — DEMO', 'Nepenthes ampullaria', 'Nepenthaceae', 0.3, 'Small rounded pitchers near ground level.'],
-        ['NIAH-DEMO-B2-003', 'Unidentified seedling — DEMO', '', '', 0.2, 'Young seedling with several green leaves.'],
+        ['NIAH-DEMO-B2-001', 'Bird nest fern â€” DEMO', 'Asplenium nidus', 'Aspleniaceae', 0.6, 'Broad green fronds in a rosette.'],
+        ['NIAH-DEMO-B2-002', 'Pitcher plant â€” DEMO', 'Nepenthes ampullaria', 'Nepenthaceae', 0.3, 'Small rounded pitchers near ground level.'],
+        ['NIAH-DEMO-B2-003', 'Unidentified seedling â€” DEMO', '', '', 0.2, 'Young seedling with several green leaves.'],
     ];
     $findRecord = $db->prepare('SELECT id FROM observations WHERE submitted_by = ? AND client_reference = ?');
     $insert = $db->prepare('INSERT INTO observations (submitted_by, client_reference, plant_tag, common_name, scientific_name, family, field_notes, habitat, morphology, conservation_status, height_m, latitude, longitude, accuracy_m, location_captured_at, photos, photo_count, status, submitted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), ?, 0, ?, UTC_TIMESTAMP())');
