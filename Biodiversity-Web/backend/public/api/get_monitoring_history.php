@@ -198,6 +198,8 @@ try {
     // 4. RETRIEVE MONITORING READINGS
     // ==========================================
 
+    $readingsParams = array_merge($params, [$offset]);
+
     $stmt = $db->prepare("
         SELECT
             r.reading_id,
@@ -234,10 +236,10 @@ try {
 
         ORDER BY r.recorded_at DESC, r.reading_id DESC
 
-        LIMIT 50 OFFSET $offset
+        LIMIT 50 OFFSET ?
     ");
 
-    $stmt->execute($params);
+    $stmt->execute($readingsParams);
     $readings = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // ==========================================
