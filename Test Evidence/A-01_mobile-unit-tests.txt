@@ -1,0 +1,51 @@
+﻿
+> react-native-app@1.0.0 test:records
+> node --test tests/*.test.cjs
+
+✔ cache migration preserves original, isolates accounts and keeps existing destination (1.5828ms)
+✔ disabled migration, corrupted data and disk failures preserve source data (0.967ms)
+✔ photo policy rejects unsupported and oversized files; accepts supported files and checked base64 fallback (91.2322ms)
+✔ GPS permission denied and services-off are actionable failures (104.3387ms)
+✔ GPS captures coordinates, accuracy and timestamp; invalid results rejected (37.1751ms)
+✔ native camera denial does not open camera; picker cancellation returns no attachment (28.925ms)
+✔ web camera opens synchronously without native permission await; gallery source and validation retained (24.4335ms)
+✔ records are sealed with AES-GCM and round-trip, including non-ASCII text (135.8269ms)
+✔ tampering, a different device key and a missing key are rejected (30.4723ms)
+✔ plaintext from earlier app versions is readable so it can be re-saved encrypted (19.1329ms)
+✔ the format matches expo-crypto combined AES-GCM: nonce, ciphertext, 16-byte tag (17.8126ms)
+✔ login sends normalized email, retains password, and accepts server roles (139.2916ms)
+✔ wrong passwords, rate limits, network failures and unknown roles are rejected (86.7134ms)
+✔ searches names and normalized IDs; combines status filter; sorts by update time (178.4387ms)
+✔ incomplete and unidentified records can be saved; normalized IDs cannot overwrite records (55.4423ms)
+✔ ready validation does not save invalid records or invent a GPS fix (22.965ms)
+✔ draft can become pending without a scientific name; non-drafts cannot be edited or deleted (19.1308ms)
+✔ only drafts can be removed and missing edit targets cannot be resurrected (56.8279ms)
+✔ repository notifies subscribers and protects records from caller mutations (20.3363ms)
+✔ temporary IDs are unique (23.2974ms)
+✔ photos and GPS survive draft save/edit; explicit removal does not mutate the original (15.6573ms)
+✔ low-accuracy fix can remain a draft but cannot be marked ready; four-photo limit enforced (22.0227ms)
+✔ signing out resets local preview records instead of exposing another account changes (11.9598ms)
+✔ server refresh preserves local drafts, replaces deleted remote records and rejects ID collisions (10.9428ms)
+✔ durable snapshots survive reopening and isolate accounts; a failed disk write keeps the prior state (13.8067ms)
+✔ upload confirmation persists; failed records can be corrected but active uploads are locked (11.644ms)
+✔ shared records with repeated tags coexist with private drafts and resolve exact QR observations (11.5978ms)
+✔ Recorded by me includes own uploads and private drafts but excludes other collectors (10.7807ms)
+✔ fetches all pages with authentication and keeps server sample labels (143.8098ms)
+✔ rejects expired sessions, malformed pages and duplicate pages (73.4545ms)
+✔ empty accounts return no samples; network and later-page failures reject the entire load (38.5913ms)
+✔ uploads only field data and photographs and requires server confirmation (52.7612ms)
+✔ downloads separate observations that share a plant tag (10.634ms)
+✔ plant tags accept IDs, prefixed IDs and record URLs (2.9187ms)
+✔ unrelated payloads and malformed tags are rejected (0.3108ms)
+✔ shared observation QR codes resolve exact server IDs (0.3453ms)
+✔ sync skips drafts, retains failed uploads, retries and confirms only accepted records (218.5528ms)
+✔ account changes discard late upload results and prevent another account receiving the record (36.3824ms)
+✔ expired credentials stop the queue and leave later records pending (57.8791ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 999.2151

@@ -1,0 +1,13 @@
+﻿Security API checks, 2026-11-21 12:48, server http://127.0.0.1:8080 (disposable niah_test database)
+S-06 no token | GET /api/mobile/plants.php -> 401 {"error":"Authentication required"}
+S-06 invalid token | GET /api/mobile/plants.php -> 401 {"error":"Session expired"}
+M-02 wrong password (mobile) | POST /api/mobile/login.php -> 401 {"error":"Invalid email or password"}
+M-16 admin on mobile | POST /api/mobile/login.php -> 403 {"error":"This account uses the Web portal."}
+web login botanist@test.local -> role botanist
+S-07 botanist calls review API | POST /api/review_observation.php -> 403 
+{"error":"Insufficient permissions"}
+web login officer@test.local -> role conservation_officer
+S-08 officer review without CSRF | POST /api/review_observation.php -> 403 
+{"error":"Invalid CSRF token"}
+S-08 officer review, wrong CSRF | POST /api/review_observation.php -> 403 
+{"error":"Invalid CSRF token"}

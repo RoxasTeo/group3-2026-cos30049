@@ -1,0 +1,25 @@
+﻿IoT pipeline checks, 2026-11-21 13:16, POST http://127.0.0.1:8080/api/submit_device_reading.php (disposable niah_test database), device DEMO-ESP32-01
+
+I-01 normal reading (25 C, 70 %, 150 cm)
+  request : {"latitude":3.8204,"distance_cm":150,"device_code":"DEMO-ESP32-01","temperature":25,"humidity":70,"longitude":113.7812}
+  response: 201 {"reading_id":56,"assignment_id":1,"automatic_alerts":[]}
+
+I-02 plant moved (100 cm, 50 cm change)
+  request : {"latitude":3.8204,"distance_cm":100,"device_code":"DEMO-ESP32-01","temperature":25,"humidity":70,"longitude":113.7812}
+  response: 201 {"reading_id":57,"assignment_id":1,"automatic_alerts":[{"alert_id":8,"rule":"distance_change","alert_type":"motion","severity":"warning","message":"Automatic [distance_change]: Distance changed by 50 cm since the previous recent reading; inspect sensor and surroundings."}]}
+
+I-03 too close (15 cm)
+  request : {"latitude":3.8204,"distance_cm":15,"device_code":"DEMO-ESP32-01","temperature":25,"humidity":70,"longitude":113.7812}
+  response: 201 {"reading_id":58,"assignment_id":1,"automatic_alerts":[{"alert_id":9,"rule":"proximity","alert_type":"proximity","severity":"critical","message":"Automatic [proximity]: Distance 15 cm within configured proximity threshold."},{"alert_id":10,"rule":"distance_change","alert_type":"motion","severity":"critical","message":"Automatic [distance_change]: Distance changed by 85 cm since the previous recent reading; inspect sensor and surroundings."}]}
+
+I-04 low humidity (10 %)
+  request : {"latitude":3.8204,"distance_cm":15,"device_code":"DEMO-ESP32-01","temperature":25,"humidity":10,"longitude":113.7812}
+  response: 201 {"reading_id":59,"assignment_id":1,"automatic_alerts":[{"alert_id":11,"rule":"humidity_low","alert_type":"humidity","severity":"critical","message":"Automatic [humidity_low]: humidity 10 % below configured range."}]}
+
+I-05 repeat too close within 5 minutes
+  request : {"latitude":3.8204,"distance_cm":15,"device_code":"DEMO-ESP32-01","temperature":25,"humidity":70,"longitude":113.7812}
+  response: 201 {"reading_id":60,"assignment_id":1,"automatic_alerts":[]}
+
+S-04 wrong device key
+  request : {"latitude":3.8204,"distance_cm":150,"device_code":"DEMO-ESP32-01","temperature":25,"humidity":70,"longitude":113.7812}
+  response: 401 {"error":"Invalid device credentials."}

@@ -1,0 +1,22 @@
+﻿
+> biodiversity-website@0.0.0 build
+> vite build
+
+vite v8.3.4 building client environment for production...
+transforming...
+✓ 67 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                     0.44 kB │ gzip:   0.29 kB
+dist/assets/PlantTrackingView-QzTPFEea.css          2.64 kB │ gzip:   0.77 kB
+dist/assets/ReportsView-Dg2rSJgM.css                3.46 kB │ gzip:   0.94 kB
+dist/assets/SpeciesDistributionView-BjLwEyAk.css    3.72 kB │ gzip:   1.12 kB
+dist/assets/niah-context-vh-t_kPv.css              15.09 kB │ gzip:   6.36 kB
+dist/assets/index-DcBu-Kf2.css                     26.37 kB │ gzip:   6.28 kB
+dist/assets/ReportsView-B7YJPET8.js                 9.94 kB │ gzip:   3.77 kB
+dist/assets/SpeciesDistributionView-CLHxsoTk.js    12.78 kB │ gzip:   4.98 kB
+dist/assets/PlantTrackingView-BD5m8Cp_.js          16.67 kB │ gzip:   5.67 kB
+dist/assets/index-BM-zXf5r.js                     181.82 kB │ gzip:  60.63 kB
+dist/assets/niah-context-DPu--ixz.js              443.10 kB │ gzip: 115.06 kB
+
+✓ built in 540ms

@@ -1,0 +1,1 @@
+﻿E-01 step 1 (upload, as the app's Sync does) | POST /api/mobile/plants.php as botanist@test.local -> 201; plantId=NIAH-E01-TEST, status=Synced, reviewStatus=Pending

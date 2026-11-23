@@ -1,0 +1,1 @@
+﻿E-03 step 1 | POST /api/mobile/plants.php as botanist2@test.local -> 201; plantId=NIAH-E03-TEST
